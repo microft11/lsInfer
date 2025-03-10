@@ -129,6 +129,7 @@ const tensor::Tensor& MatmulLayer::get_bias(int32_t idx) const {
   return bias_.at(idx);
 }
 
+#ifdef USE_CUDA
 void MatmulLayer::to_cuda() {
   LayerParam::to_cuda();
   if (has_bias_) {
@@ -137,5 +138,6 @@ void MatmulLayer::to_cuda() {
     }
   }
 }
+#endif
 
 }  // namespace op

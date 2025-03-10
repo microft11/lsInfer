@@ -1,6 +1,4 @@
 #include "tensor/tensor.h"
-#include <cuda_device_runtime_api.h>
-#include <cuda_runtime.h>
 #include <glog/logging.h>
 #include <numeric>
 
@@ -100,7 +98,9 @@ Tensor::Tensor(base::DataType data_type, std::vector<int32_t> dims, bool need_al
     init_buffer(alloc, data_type_, need_alloc, ptr);
   }
 }
-
+#ifdef USE_CUDA
+#include <cuda_device_runtime_api.h>
+#include <cuda_runtime.h>
 void Tensor::to_cuda(cudaStream_t stream) {
   CHECK_NE(buffer_, nullptr);
   const base::DeviceType device_type = this->device_type();
@@ -117,6 +117,7 @@ void Tensor::to_cuda(cudaStream_t stream) {
     LOG(INFO) << "The device type of the tensor is already cuda.";
   }
 }
+#endif
 
 void Tensor::to_cpu() {
   CHECK_NE(buffer_, nullptr);

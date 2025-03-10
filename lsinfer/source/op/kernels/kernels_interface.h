@@ -1,17 +1,17 @@
 #ifndef KERNELS_INTERFACE_H
 #define KERNELS_INTERFACE_H
-#include <base/cuda_config.h>
+#include <base/backend_config.h>
 #include "tensor/tensor.h"
 namespace kernel {
 typedef void (*AddKernel)(const tensor::Tensor& input1, const tensor::Tensor& input2,
                           const tensor::Tensor& output, void* stream);
 
 typedef void (*MatmulKernel)(const tensor::Tensor& input, const tensor::Tensor& weight,
-                             const tensor::Tensor& output, float scale, const CudaConfig* config);
+                             const tensor::Tensor& output, float scale, const Config* config);
 
 typedef void (*MatmulKernelQuant)(const tensor::Tensor& input, const tensor::Tensor& weight,
                                   const tensor::Tensor& output, int32_t group_size,
-                                  const tensor::Tensor& scale, const CudaConfig* config);
+                                  const tensor::Tensor& scale, const Config* config);
 
 typedef void (*EmbeddingKernel)(const tensor::Tensor& input, const tensor::Tensor& weight,
                                 const tensor::Tensor& output, int32_t vocab_size, void* stream);
@@ -25,7 +25,7 @@ typedef void (*MHAKernel)(int32_t pos, int32_t head_num, int32_t layer_index, in
                           const tensor::Tensor& score_tensor,
                           const tensor::Tensor& key_cache_tensor,
                           const tensor::Tensor& value_cache_tensor, base::DeviceType device_type,
-                          CudaConfig*);
+                          Config*);
 
 typedef void (*RMSNormKernel)(const tensor::Tensor& input, const tensor::Tensor& weight,
                               const tensor::Tensor& output, void* stream);

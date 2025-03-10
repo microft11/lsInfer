@@ -1,7 +1,5 @@
 #include "op/rmsnorm.h"
-#include <cuda_runtime_api.h>
 #include <armadillo>
-#include "kernels/cpu/rmsnorm_kernel.h"
 #include "kernels/kernels_interface.h"
 namespace op {
 RmsNormLayer::RmsNormLayer(base::DeviceType device_type, int32_t dim)

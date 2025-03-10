@@ -1,5 +1,7 @@
 #include "model/llama3.h"
+#if defined(USE_CUDA)
 #include <cuda_runtime_api.h>
+#endif
 #include <glog/logging.h>
 #include <op/matmul.h>
 #include <op/mha.h>
@@ -7,11 +9,11 @@
 #include <sentencepiece_processor.h>
 #include <utility>
 #include "../op/kernels/cpu/rope_kernel.h"
-#include "../op/kernels/cuda/rope_kernel.cuh"
-#include "base/tick.h"
+// #include "../op/kernels/cuda/rope_kernel.cuh"
+// #include "base/tick.h"
 namespace model {
 
-void LLama2Layers::to_cuda(std::shared_ptr<kernel::CudaConfig> config) {
+void LLama2Layers::to_cuda(std::shared_ptr<kernel::Config> config) {
   if (add_layer_) {
     add_layer_->set_cuda_config(config);
     add_layer_->to_cuda();
@@ -109,11 +111,13 @@ base::Status LLama2Model::init(base::DeviceType device_type) {
   if (token_path_.empty()) {
     return error::PathNotValid(token_path_);
   }
+  // 控制是否支持 int8 量化模型，使用宏来管理
   if (device_type == base::DeviceType::kDeviceCPU && is_quant_model_) {
-    return error::InternalError("The cpu device do not support int8 quant model.");
+    return error::InternalError("The cpu device does not support int8 quant model.");
   }
-
   device_type_ = device_type;
+  // 根据设备类型来进行初始化
+#ifdef USE_CUDA
   if (device_type == DeviceType::kDeviceCUDA) {
     cudaSetDevice(0);
     cuda_config_ = std::make_shared<kernel::CudaConfig>();
@@ -123,26 +127,38 @@ base::Status LLama2Model::init(base::DeviceType device_type) {
       return error::InternalError("The cuda handle create failed.");
     }
   }
+#endif
 
+  // 读取模型文件并生成
   Status read_status = gen_model_from_file();
   if (!read_status) {
     return read_status;
   }
+
   init_mem();
+
+  // 设备特定的初始化逻辑
+#ifdef USE_CPU
   if (device_type_ == base::DeviceType::kDeviceCPU) {
     kernel::sin_cos_cache_calc_cpu(config_->head_size_, config_->seq_len_,
                                    get_buffer(ModelBufferType::kSinCache).ptr<float>(),
                                    get_buffer(ModelBufferType::kCosCache).ptr<float>());
-  } else {
+  }
+#endif
+
+#ifdef USE_CUDA
+  if (device_type_ == base::DeviceType::kDeviceCUDA) {
     CHECK_NE(cuda_config_, nullptr);
     kernel::sin_cos_cache_calc_cu(config_->head_size_, config_->seq_len_,
                                   get_buffer(ModelBufferType::kSinCache),
                                   get_buffer(ModelBufferType::kCosCache), cuda_config_->stream);
   }
+#endif
 
   sampler_ = std::make_unique<sampler::ArgmaxSampler>(device_type_);
   return error::Success();
 }
+
 
 base::Status LLama2Model::forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
                                   int& next) const {

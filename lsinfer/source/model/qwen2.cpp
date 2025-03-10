@@ -1,5 +1,7 @@
 #include "model/qwen2.h"
+#if defined(USE_CUDA)
 #include <cuda_runtime_api.h>
+#endif
 #include <glog/logging.h>
 #include <op/matmul.h>
 #include <op/mha.h>
@@ -11,7 +13,7 @@
 #include "base/tick.h"
 namespace model {
 
-void Qwen2Layers::to_cuda(std::shared_ptr<kernel::CudaConfig> config) {
+void Qwen2Layers::to_cuda(std::shared_ptr<kernel::Config> config) {
   if (add_layer_) {
     add_layer_->set_cuda_config(config);
     add_layer_->to_cuda();
@@ -106,43 +108,77 @@ Qwen2Model::Qwen2Model(base::TokenizerType tokenizer_type, std::string token_pat
 
 base::Status Qwen2Model::init(base::DeviceType device_type) {
   using namespace base;
+
   if (token_path_.empty()) {
     return error::PathNotValid(token_path_);
   }
+  // 量化模型目前不支持 CPU
   if (device_type == base::DeviceType::kDeviceCPU && is_quant_model_) {
-    return error::InternalError("The cpu device do not support int8 quant model.");
+    return error::InternalError("The CPU device does not support int8 quant model.");
   }
-
   device_type_ = device_type;
+
+#ifdef USE_CUDA
   if (device_type == DeviceType::kDeviceCUDA) {
     cudaSetDevice(0);
-    cuda_config_ = std::make_shared<kernel::CudaConfig>();
+    cuda_config_ = std::make_shared<kernel::Config>();
     cudaStreamCreate(&cuda_config_->stream);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
-      return error::InternalError("The cuda hanle create failed.");
+      return error::InternalError("The CUDA handle creation failed.");
     }
   }
+#endif
+
+#ifdef USE_ROCM
+  if (device_type == DeviceType::kDeviceROCm) {
+    hipSetDevice(0);
+    rocm_config_ = std::make_shared<kernel::Config>();
+    hipStreamCreate(&rocm_config_->stream);
+    hipError_t err = hipGetLastError();
+    if (err != hipSuccess) {
+      return error::InternalError("The ROCm handle creation failed.");
+    }
+  }
+#endif
 
   Status read_status = gen_model_from_file();
   if (!read_status) {
     return read_status;
   }
+
   init_mem();
+
+#ifdef USE_CPU
   if (device_type_ == base::DeviceType::kDeviceCPU) {
     kernel::sin_cos_cache_calc_cpu(config_->head_size_, config_->seq_len_,
                                    get_buffer(ModelBufferType::kSinCache).ptr<float>(),
                                    get_buffer(ModelBufferType::kCosCache).ptr<float>());
-  } else {
+  }
+#endif
+
+#ifdef USE_CUDA
+  if (device_type_ == base::DeviceType::kDeviceCUDA) {
     CHECK_NE(cuda_config_, nullptr);
     kernel::sin_cos_cache_calc_cu(config_->head_size_, config_->seq_len_,
                                   get_buffer(ModelBufferType::kSinCache),
                                   get_buffer(ModelBufferType::kCosCache), cuda_config_->stream);
   }
+#endif
+
+#ifdef USE_ROCM
+  if (device_type_ == base::DeviceType::kDeviceROCm) {
+    CHECK_NE(rocm_config_, nullptr);
+    kernel::sin_cos_cache_calc_rocm(config_->head_size_, config_->seq_len_,
+                                    get_buffer(ModelBufferType::kSinCache),
+                                    get_buffer(ModelBufferType::kCosCache), rocm_config_->stream);
+  }
+#endif
 
   sampler_ = std::make_unique<sampler::ArgmaxSampler>(device_type_);
   return error::Success();
 }
+
 
 base::Status Qwen2Model::forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
                                  int& next) const {

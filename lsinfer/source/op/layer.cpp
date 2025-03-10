@@ -1,5 +1,5 @@
 #include "op/layer.h"
-#include <base/cuda_config.h>
+#include <base/backend_config.h>
 #include <glog/logging.h>
 #include <cstdarg>
 #include <numeric>
@@ -124,6 +124,7 @@ void Layer::reset_input_size(size_t size) { inputs_.resize(size); }
 
 void Layer::reset_output_size(size_t size) { outputs_.resize(size); }
 
+#ifdef USE_CUDA
 void Layer::to_cuda() {
   for (auto& input : inputs_) {
     if (!input.is_empty()) {
@@ -136,15 +137,31 @@ void Layer::to_cuda() {
     }
   }
 }
+#endif
 
-void Layer::set_cuda_config(std::shared_ptr<kernel::CudaConfig> config) {
+#ifdef USE_ROCM
+void Layer::to_rocm() {
+  for (auto& input : inputs_) {
+    if (!input.is_empty()) {
+      input.to_rocm(cuda_config_ ? cuda_config_->stream : nullptr);
+    }
+  }
+  for (auto& output : outputs_) {
+    if (!output.is_empty()) {
+      output.to_rocm(cuda_config_ ? cuda_config_->stream : nullptr);
+    }
+  }
+}
+#endif
+
+void Layer::set_cuda_config(std::shared_ptr<kernel::Config> config) {
   if (!config) {
     return;
   }
   this->cuda_config_ = config;
 }
 
-std::shared_ptr<kernel::CudaConfig> Layer::cuda_config() const { return cuda_config_; }
+std::shared_ptr<kernel::Config> Layer::cuda_config() const { return cuda_config_; }
 
 size_t Layer::input_size() const { return inputs_.size(); }
 
@@ -171,6 +188,7 @@ const tensor::Tensor& LayerParam::get_weight(int32_t idx) const {
   return weights_.at(idx);
 }
 
+#ifdef USE_CUDA
 void LayerParam::to_cuda() {
   Layer::to_cuda();
   for (auto& weight : weights_) {
@@ -180,6 +198,19 @@ void LayerParam::to_cuda() {
     scales_.to_cuda(cuda_config_ ? cuda_config_->stream : nullptr);
   }
 }
+#endif
+
+#ifdef USE_ROCM
+void LayerParam::to_rocm() {
+  Layer::to_rocm();
+  for (auto& weight : weights_) {
+    weight.to_rocm(cuda_config_ ? cuda_config_->stream : nullptr);
+  }
+  if (!scales_.is_empty()) {
+    scales_.to_rocm(cuda_config_ ? cuda_config_->stream : nullptr);
+  }
+}
+#endif
 
 base::Status LayerParam::set_weight(int32_t idx, const std::vector<int32_t>& dims,
                                     const void* weight_ptr, base::DeviceType device_type) {

@@ -1,6 +1,6 @@
 #ifndef KUIPER_INCLUDE_OP_LAYER_H_
 #define KUIPER_INCLUDE_OP_LAYER_H_
-#include <base/cuda_config.h>
+#include <base/backend_config.h>
 #include <string>
 #include <vector>
 #include "base/base.h"
@@ -144,14 +144,16 @@ class Layer : public BaseLayer {
 
   virtual void to_cuda();
 
-  void set_cuda_config(std::shared_ptr<kernel::CudaConfig> config);
+  virtual void to_rocm();
 
-  std::shared_ptr<kernel::CudaConfig> cuda_config() const;
+  void set_cuda_config(std::shared_ptr<kernel::Config> config);
+
+  std::shared_ptr<kernel::Config> cuda_config() const;
 
  protected:
   std::vector<tensor::Tensor> inputs_;
   std::vector<tensor::Tensor> outputs_;
-  std::shared_ptr<kernel::CudaConfig> cuda_config_;
+  std::shared_ptr<kernel::Config> cuda_config_;
 };
 
 class LayerParam : public Layer {

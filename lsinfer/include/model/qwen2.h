@@ -1,6 +1,6 @@
 #ifndef KUIPER_INCLUDE_MODEL_LLAMA_H_
 #define KUIPER_INCLUDE_MODEL_LLAMA_H_
-#include <base/cuda_config.h>
+#include <base/backend_config.h>
 #include "model.h"
 #include "op/add.h"
 #include "op/embedding.h"
@@ -27,7 +27,7 @@ struct Qwen2Layers {
 
   std::shared_ptr<op::Layer> embedding_layer_;
 
-  void to_cuda(std::shared_ptr<kernel::CudaConfig> config);
+  void to_cuda(std::shared_ptr<kernel::Config> config);
 };
 
 class Qwen2Model : public Model {
@@ -69,7 +69,7 @@ class Qwen2Model : public Model {
   int32_t post_processing(const tensor::Tensor& pos, bool is_prompt) const override;
 
  private:
-  std::shared_ptr<kernel::CudaConfig> cuda_config_;
+  std::shared_ptr<kernel::Config> cuda_config_;
   std::unique_ptr<Qwen2Layers> qwen_layers_;
 };
 }  // namespace model

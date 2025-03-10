@@ -87,7 +87,7 @@ __global__ void matmul_kernel_cu_fp32int8(const float* input, const int8_t* weig
 }
 
 void matmul_kernel_cu(const tensor::Tensor& input, const tensor::Tensor& weight,
-                      const tensor::Tensor& output, const float scale, const CudaConfig* config) {
+                      const tensor::Tensor& output, const float scale, const Config* config) {
   CHECK(input.is_empty() == false && input.dims_size() <= 2);
   CHECK(input.device_type() == base::DeviceType::kDeviceCUDA);
 
@@ -110,7 +110,7 @@ void matmul_kernel_cu(const tensor::Tensor& input, const tensor::Tensor& weight,
 
 void matmul_kernel_cu_qint8(const tensor::Tensor& input, const tensor::Tensor& weight,
                             const tensor::Tensor& output, int32_t group_size,
-                            const tensor::Tensor& scale, const CudaConfig* config) {
+                            const tensor::Tensor& scale, const Config* config) {
   CHECK(config != nullptr);
   CHECK(input.is_empty() == false && input.dims_size() <= 2);
   CHECK(input.device_type() == base::DeviceType::kDeviceCUDA);

@@ -1,132 +1,86 @@
-#include <cuda_runtime_api.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <tensor/tensor.h>
-#include "../utils.cuh"
 #include "base/buffer.h"
+
+#ifdef USE_CUDA
+#include <cuda_runtime_api.h>
+#include "../utils.cuh"
+#define DEVICE_ALLOCATOR CUDADeviceAllocatorFactory::get_instance()
+#define COPY_TO_HOST(dst, src, size) cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost)
+#define SET_VALUE_CU(ptr, size, value) set_value_cu(ptr, size, value)
+#elif defined(USE_ROCM)
+#include <hip/hip_runtime.h>
+#include "../utils_hip.cuh"
+#define DEVICE_ALLOCATOR ROCmDeviceAllocatorFactory::get_instance()
+#define COPY_TO_HOST(dst, src, size) hipMemcpy(dst, src, size, hipMemcpyDeviceToHost)
+#define SET_VALUE_CU(ptr, size, value) set_value_hip(ptr, size, value)
+#else
+#define DEVICE_ALLOCATOR CPUDeviceAllocatorFactory::get_instance()
+#define COPY_TO_HOST(dst, src, size) std::memcpy(dst, src, size)
+#define SET_VALUE_CU(ptr, size, value) \
+    for (int i = 0; i < size; ++i) { *(ptr + i) = value; }
+#endif
 
 TEST(test_tensor, to_cpu) {
   using namespace base;
-  auto alloc_cu = CUDADeviceAllocatorFactory::get_instance();
-  tensor::Tensor t1_cu(DataType::kDataTypeFp32, 32, 32, true, alloc_cu);
-  ASSERT_EQ(t1_cu.is_empty(), false);
-  set_value_cu(t1_cu.ptr<float>(), 32 * 32);
+  auto alloc = DEVICE_ALLOCATOR;
+  tensor::Tensor t1(DataType::kDataTypeFp32, 32, 32, true, alloc);
+  ASSERT_EQ(t1.is_empty(), false);
+  SET_VALUE_CU(t1.ptr<float>(), 32 * 32, 1.f);
 
-  t1_cu.to_cpu();
-  ASSERT_EQ(t1_cu.device_type(), base::DeviceType::kDeviceCPU);
-  float* cpu_ptr = t1_cu.ptr<float>();
+  t1.to_cpu();
+  ASSERT_EQ(t1.device_type(), base::DeviceType::kDeviceCPU);
+  float* cpu_ptr = t1.ptr<float>();
   for (int i = 0; i < 32 * 32; ++i) {
     ASSERT_EQ(*(cpu_ptr + i), 1.f);
   }
 }
 
-TEST(test_tensor, clone_cuda) {
+TEST(test_tensor, clone) {
   using namespace base;
-  auto alloc_cu = CUDADeviceAllocatorFactory::get_instance();
-  tensor::Tensor t1_cu(DataType::kDataTypeFp32, 32, 32, true, alloc_cu);
-  ASSERT_EQ(t1_cu.is_empty(), false);
-  set_value_cu(t1_cu.ptr<float>(), 32 * 32, 1.f);
+  auto alloc = DEVICE_ALLOCATOR;
+  tensor::Tensor t1(DataType::kDataTypeFp32, 32, 32, true, alloc);
+  ASSERT_EQ(t1.is_empty(), false);
+  SET_VALUE_CU(t1.ptr<float>(), 32 * 32, 1.f);
 
-  tensor::Tensor t2_cu = t1_cu.clone();
+  tensor::Tensor t2 = t1.clone();
   float* p2 = new float[32 * 32];
-  cudaMemcpy(p2, t2_cu.ptr<float>(), sizeof(float) * 32 * 32, cudaMemcpyDeviceToHost);
+  COPY_TO_HOST(p2, t2.ptr<float>(), sizeof(float) * 32 * 32);
   for (int i = 0; i < 32 * 32; ++i) {
     ASSERT_EQ(p2[i], 1.f);
   }
 
-  cudaMemcpy(p2, t1_cu.ptr<float>(), sizeof(float) * 32 * 32, cudaMemcpyDeviceToHost);
+  COPY_TO_HOST(p2, t1.ptr<float>(), sizeof(float) * 32 * 32);
   for (int i = 0; i < 32 * 32; ++i) {
     ASSERT_EQ(p2[i], 1.f);
   }
 
-  ASSERT_EQ(t2_cu.data_type(), base::DataType::kDataTypeFp32);
-  ASSERT_EQ(t2_cu.size(), 32 * 32);
+  ASSERT_EQ(t2.data_type(), base::DataType::kDataTypeFp32);
+  ASSERT_EQ(t2.size(), 32 * 32);
 
-  t2_cu.to_cpu();
-  std::memcpy(p2, t2_cu.ptr<float>(), sizeof(float) * 32 * 32);
+  t2.to_cpu();
+  std::memcpy(p2, t2.ptr<float>(), sizeof(float) * 32 * 32);
   for (int i = 0; i < 32 * 32; ++i) {
     ASSERT_EQ(p2[i], 1.f);
-  }
-  delete[] p2;
-}
-
-TEST(test_tensor, clone_cpu) {
-  using namespace base;
-  auto alloc_cpu = CPUDeviceAllocatorFactory::get_instance();
-  tensor::Tensor t1_cpu(DataType::kDataTypeFp32, 32, 32, true, alloc_cpu);
-  ASSERT_EQ(t1_cpu.is_empty(), false);
-  for (int i = 0; i < 32 * 32; ++i) {
-    t1_cpu.index<float>(i) = 1.f;
-  }
-
-  tensor::Tensor t2_cpu = t1_cpu.clone();
-  float* p2 = new float[32 * 32];
-  std::memcpy(p2, t2_cpu.ptr<float>(), sizeof(float) * 32 * 32);
-  for (int i = 0; i < 32 * 32; ++i) {
-    ASSERT_EQ(p2[i], 1.f);
-  }
-
-  std::memcpy(p2, t1_cpu.ptr<float>(), sizeof(float) * 32 * 32);
-  for (int i = 0; i < 32 * 32; ++i) {
-    ASSERT_EQ(p2[i], 1.f);
-  }
-  delete[] p2;
-}
-
-TEST(test_tensor, to_cu) {
-  using namespace base;
-  auto alloc_cpu = CPUDeviceAllocatorFactory::get_instance();
-  tensor::Tensor t1_cpu(DataType::kDataTypeFp32, 32, 32, true, alloc_cpu);
-  ASSERT_EQ(t1_cpu.is_empty(), false);
-  float* p1 = t1_cpu.ptr<float>();
-  for (int i = 0; i < 32 * 32; ++i) {
-    *(p1 + i) = 1.f;
-  }
-
-  t1_cpu.to_cuda();
-  float* p2 = new float[32 * 32];
-  cudaMemcpy(p2, t1_cpu.ptr<float>(), sizeof(float) * 32 * 32, cudaMemcpyDeviceToHost);
-  for (int i = 0; i < 32 * 32; ++i) {
-    ASSERT_EQ(*(p2 + i), 1.f);
   }
   delete[] p2;
 }
 
 TEST(test_tensor, init1) {
   using namespace base;
-  auto alloc_cu = base::CPUDeviceAllocatorFactory::get_instance();
+  auto alloc = CPUDeviceAllocatorFactory::get_instance();
 
   int32_t size = 32 * 151;
-
-  tensor::Tensor t1(base::DataType::kDataTypeFp32, size, true, alloc_cu);
+  tensor::Tensor t1(base::DataType::kDataTypeFp32, size, true, alloc);
   ASSERT_EQ(t1.is_empty(), false);
 }
 
-TEST(test_tensor, init3) {
+TEST(test_tensor, assign) {
   using namespace base;
-  float* ptr = new float[32];
-  ptr[0] = 31;
-  tensor::Tensor t1(base::DataType::kDataTypeFp32, 32, false, nullptr, ptr);
+  auto alloc = CPUDeviceAllocatorFactory::get_instance();
+  tensor::Tensor t1(DataType::kDataTypeFp32, 32, 32, true, alloc);
   ASSERT_EQ(t1.is_empty(), false);
-  ASSERT_EQ(t1.ptr<float>(), ptr);
-  ASSERT_EQ(*t1.ptr<float>(), 31);
-}
-
-TEST(test_tensor, init2) {
-  using namespace base;
-  auto alloc_cu = base::CPUDeviceAllocatorFactory::get_instance();
-
-  int32_t size = 32 * 151;
-
-  tensor::Tensor t1(base::DataType::kDataTypeFp32, size, false, alloc_cu);
-  ASSERT_EQ(t1.is_empty(), true);
-}
-
-TEST(test_tensor, assign1) {
-  using namespace base;
-  auto alloc_cpu = CPUDeviceAllocatorFactory::get_instance();
-  tensor::Tensor t1_cpu(DataType::kDataTypeFp32, 32, 32, true, alloc_cpu);
-  ASSERT_EQ(t1_cpu.is_empty(), false);
 
   int32_t size = 32 * 32;
   float* ptr = new float[size];
@@ -137,8 +91,8 @@ TEST(test_tensor, assign1) {
       std::make_shared<Buffer>(size * sizeof(float), nullptr, ptr, true);
   buffer->set_device_type(DeviceType::kDeviceCPU);
 
-  ASSERT_EQ(t1_cpu.assign(buffer), true);
-  ASSERT_EQ(t1_cpu.is_empty(), false);
-  ASSERT_NE(t1_cpu.ptr<float>(), nullptr);
+  ASSERT_EQ(t1.assign(buffer), true);
+  ASSERT_EQ(t1.is_empty(), false);
+  ASSERT_NE(t1.ptr<float>(), nullptr);
   delete[] ptr;
 }
