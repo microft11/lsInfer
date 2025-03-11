@@ -24,6 +24,7 @@ link_directories(/usr/local/lib)
 # 查找 SentencePiece 库
 find_library(SENTENCEPIECE_LIBRARY sentencepiece)
 if(SENTENCEPIECE_LIBRARY)
+    message(STATUS "find sentencepiece!!!")
     target_link_libraries(test_llm ${SENTENCEPIECE_LIBRARY})
 else()
     message(FATAL_ERROR "SentencePiece library not found!")

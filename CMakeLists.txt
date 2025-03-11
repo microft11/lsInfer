@@ -34,7 +34,7 @@ if(USE_CPM)
   CPMAddPackage(NAME glog GITHUB_REPOSITORY google/glog VERSION 0.7.1 OPTIONS "BUILD_TESTING Off")
   CPMAddPackage(NAME Armadillo GITLAB_REPOSITORY conradsnicta/armadillo-code GIT_TAG 14.0.1)
   CPMAddPackage(NAME sentencepiece GITHUB_REPOSITORY google/sentencepiece VERSION 0.2.0)
-  find_package(sentencepiece REQUIRED)
+  # find_package(sentencepiece REQUIRED)
   find_path(SENTENCEPIECE_INCLUDE_DIR sentencepiece_processor.h)
   if(SENTENCEPIECE_INCLUDE_DIR)
     include_directories(${SENTENCEPIECE_INCLUDE_DIR})
@@ -116,7 +116,16 @@ if(USE_CPM)
   target_include_directories(MyInferenceFramework PUBLIC ${sentencepiece_SOURCE_DIR}/src)
 endif()
 
-target_link_libraries(MyInferenceFramework PRIVATE sentencepiece glog::glog pthread Armadillo)
+target_link_libraries(MyInferenceFramework PRIVATE 
+  -I/usr/local/lib/libsentencepiece.a
+  -I/usr/local/lib/libarmadillo.dylib
+)
+
+target_link_libraries(MyInferenceFramework PRIVATE glog::glog pthread)
+if(USE_CPM)
+  # Add sentencepiece include directory
+  target_include_directories(MyInferenceFramework PUBLIC ${sentencepiece_SOURCE_DIR}/src)
+endif()
 # 安装目标
 install(TARGETS MyInferenceFramework DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)
