@@ -21,6 +21,13 @@
 4. armadillo + openblas https://arma.sourceforge.net/download.html
 5. Cuda Toolkit
 
+## Huggingface镜像站使用
+1. 依赖
+~~~
+pip install -U huggingface_hub hf_transfer
+export HF_ENDPOINT=https://hf-mirror.com
+export HF_HUB_ENABLE_HF_TRANSFER=1
+~~~
 
 ## 模型下载地址
 1. LLama2 https://pan.baidu.com/s/1PF5KqvIvNFR8yDIY1HmTYA?pwd=ma8r 或 https://huggingface.co/fushenshen/lession_model/tree/main
