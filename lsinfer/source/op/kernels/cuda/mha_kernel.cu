@@ -1,5 +1,6 @@
 #include <base/cuda_config.h>
 #include <tensor/tensor.h>
+#include <cfloat>  // 或者 #include <float.h>
 #include <cub/cub.cuh>
 #include "mha_kernel.cuh"
 namespace kernel {
