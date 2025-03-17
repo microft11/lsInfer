@@ -1,6 +1,7 @@
 #include <base/base.h>
 #include <base/tick.h>
 #include <glog/logging.h>
+#include <cxxopts.hpp>
 #include "model/qwen2.h"
 int32_t generate(const model::Qwen2Model& model, const std::string& sentence, int total_steps,
                  bool need_output = false) {
@@ -47,27 +48,52 @@ int32_t generate(const model::Qwen2Model& model, const std::string& sentence, in
   return std::min(pos, total_steps);
 }
 
-
 int main(int argc, char* argv[]) {
-  if (argc != 3) {
-    LOG(INFO) << "Usage: ./demo checkpoint path tokenizer path";
+  cxxopts::Options options("demo", "Qwen2 Text Generation");
+  options.add_options()("c,checkpoint", "Checkpoint file path", cxxopts::value<std::string>())(
+      "t,tokenizer", "Tokenizer file path", cxxopts::value<std::string>())(
+      "d,device", "Device type (cpu/cuda)", cxxopts::value<std::string>()->default_value("cpu"))(
+      "s,steps", "Number of generation steps", cxxopts::value<int>()->default_value("128"))(
+      "h,help", "Print usage");
+
+  auto result = options.parse(argc, argv);
+  if (result.count("help")) {
+    std::cout << options.help() << std::endl;
+    return 0;
+  }
+
+  if (!result.count("checkpoint") || !result.count("tokenizer")) {
+    LOG(INFO)
+        << "Usage: ./demo --checkpoint <path> --tokenizer <path> [--device cpu/cuda] [--steps N]";
     return -1;
   }
-  const char* checkpoint_path = argv[1];  // e.g. out/model.bin
-  const char* tokenizer_path = argv[2];
 
-  model::Qwen2Model model(base::TokenizerType::kEncodeBpe, tokenizer_path,
-    checkpoint_path, false);
-  auto init_status = model.init(base::DeviceType::kDeviceCUDA);
+  std::string checkpoint_path = result["checkpoint"].as<std::string>();
+  std::string tokenizer_path = result["tokenizer"].as<std::string>();
+  std::string device_type = result["device"].as<std::string>();
+  int total_steps = result["steps"].as<int>();
+
+  base::DeviceType device = base::DeviceType::kDeviceUnknown;
+  if (device_type == "cpu") {
+    device = base::DeviceType::kDeviceCPU;
+  } else if (device_type == "cuda") {
+    device = base::DeviceType::kDeviceCUDA;
+  } else {
+    LOG(FATAL) << "Invalid device type. Use 'cpu' or 'cuda'.";
+  }
+
+  model::Qwen2Model model(base::TokenizerType::kEncodeBpe, tokenizer_path, checkpoint_path, false);
+  auto init_status = model.init(device);
   if (!init_status) {
     LOG(FATAL) << "The model init failed, the error code is: " << init_status.get_err_code();
   }
+
   const std::string& sentence = "hi!";
 
   auto start = std::chrono::steady_clock::now();
   printf("Generating...\n");
   fflush(stdout);
-  int steps = generate(model, sentence, 128, true);
+  int steps = generate(model, sentence, total_steps, true);
   auto end = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration<double>(end - start).count();
   printf("\nsteps:%d\n", steps);

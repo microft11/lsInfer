@@ -7,8 +7,7 @@
 #endif
 
 namespace base {
-CPUDeviceAllocator::CPUDeviceAllocator() : DeviceAllocator(DeviceType::kDeviceCPU) {
-}
+CPUDeviceAllocator::CPUDeviceAllocator() : DeviceAllocator(DeviceType::kDeviceCPU) {}
 
 void* CPUDeviceAllocator::allocate(size_t byte_size) const {
   if (!byte_size) {
@@ -17,9 +16,8 @@ void* CPUDeviceAllocator::allocate(size_t byte_size) const {
 #ifdef KUIPER_HAVE_POSIX_MEMALIGN
   void* data = nullptr;
   const size_t alignment = (byte_size >= size_t(1024)) ? size_t(32) : size_t(16);
-  int status = posix_memalign((void**)&data,
-                              ((alignment >= sizeof(void*)) ? alignment : sizeof(void*)),
-                              byte_size);
+  int status = posix_memalign(
+      (void**)&data, ((alignment >= sizeof(void*)) ? alignment : sizeof(void*)), byte_size);
   if (status != 0) {
     return nullptr;
   }
