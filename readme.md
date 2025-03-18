@@ -21,6 +21,15 @@
 4. armadillo + openblas https://arma.sourceforge.net/download.html
 5. Cuda Toolkit
 
+### 手动下载
+```shell
+sudo apt-get -y install libgoogle-glog-dev
+sudo apt-get -y install libarmadillo-dev
+sudo apt-get -y install libsentencepiece-dev # ubuntu版本低了这个库没有需要自己编译
+sudo apt-get -y install libgtest-dev
+sudo apt -y install libcxxopts-dev
+```
+
 ## Huggingface镜像站使用
 1. 依赖
 ~~~

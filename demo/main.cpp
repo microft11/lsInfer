@@ -1,7 +1,7 @@
 #include <base/base.h>
 #include <base/tick.h>
 #include <glog/logging.h>
-#include <CLI/CLI.hpp>
+#include <cxxopts.hpp>
 #include "model/llama3.h"
 int32_t generate(const model::LLama2Model& model, const std::string& sentence, int total_steps,
                  bool need_output = false) {
@@ -48,23 +48,35 @@ int32_t generate(const model::LLama2Model& model, const std::string& sentence, i
 }
 
 int main(int argc, char* argv[]) {
-  CLI::App app{"LLaMA Text Generation"};
+  cxxopts::Options options("LLaMA Text Generation", "Generate text using LLaMA model");
 
-  std::string checkpoint_path;
-  std::string tokenizer_path;
-  std::string device_str = "cpu";  // 默认设备
-  int total_steps = 128;
-  bool need_output = false;
+  options.add_options()("m,model", "Path to model checkpoint (e.g., out/model.bin)",
+                        cxxopts::value<std::string>())("t,tokenizer", "Path to tokenizer",
+                                                       cxxopts::value<std::string>())(
+      "d,device", "Device to use: cpu, cuda", cxxopts::value<std::string>()->default_value("cpu"))(
+      "s,steps", "Number of generation steps", cxxopts::value<int>()->default_value("128"))(
+      "o,output", "Print generated text", cxxopts::value<bool>()->default_value("false"))(
+      "h,help", "Print usage");
 
-  // 添加命令行参数
-  app.add_option("-m,--model", checkpoint_path, "Path to model checkpoint (e.g., out/model.bin)")
-      ->required();
-  app.add_option("-t,--tokenizer", tokenizer_path, "Path to tokenizer")->required();
-  app.add_option("-d,--device", device_str, "Device to use: cpu, cuda, rocm (default: cuda)");
-  app.add_option("-s,--steps", total_steps, "Number of generation steps (default: 128)");
-  app.add_flag("-o,--output", need_output, "Print generated text");
+  auto result = options.parse(argc, argv);
 
-  CLI11_PARSE(app, argc, argv);
+  if (result.count("help")) {
+    std::cout << options.help() << std::endl;
+    return 0;
+  }
+
+  if (!result.count("model") || !result.count("tokenizer")) {
+    std::cerr << "Error: Missing required arguments: --model and --tokenizer are required."
+              << std::endl;
+    std::cerr << options.help() << std::endl;
+    return 1;
+  }
+
+  std::string checkpoint_path = result["model"].as<std::string>();
+  std::string tokenizer_path = result["tokenizer"].as<std::string>();
+  std::string device_str = result["device"].as<std::string>();
+  int total_steps = result["steps"].as<int>();
+  bool need_output = result["output"].as<bool>();
 
   // 设备映射
   base::DeviceType device_type = base::DeviceType::kDeviceUnknown;
@@ -73,31 +85,29 @@ int main(int argc, char* argv[]) {
   } else if (device_str == "cuda") {
     device_type = base::DeviceType::kDeviceCUDA;
   } else {
-    LOG(FATAL) << "Invalid device type: " << device_str;
+    std::cerr << "Error: Invalid device type: " << device_str << std::endl;
+    std::cerr << options.help() << std::endl;
+    return 1;
   }
 
   model::LLama2Model model(base::TokenizerType::kEncodeSpe, tokenizer_path, checkpoint_path, false);
 
-  // 选择设备初始化
-  base::DeviceType base_device_type = base::DeviceType::kDeviceCPU;
-  if (device_type == base::DeviceType::kDeviceCUDA) {
-    base_device_type = base::DeviceType::kDeviceCUDA;
-  }
-
+  base::DeviceType base_device_type = (device_type == base::DeviceType::kDeviceCUDA)
+                                          ? base::DeviceType::kDeviceCUDA
+                                          : base::DeviceType::kDeviceCPU;
   auto init_status = model.init(base_device_type);
   if (!init_status) {
-    LOG(FATAL) << "Model initialization failed: " << init_status.get_err_msg();
+    std::cerr << "Error: Model initialization failed: " << init_status.get_err_msg() << std::endl;
+    return 1;
   }
 
-  const std::string& sentence = "a";
+  std::string sentence = "a";
   auto start = std::chrono::steady_clock::now();
-  printf("Generating...\n");
-  fflush(stdout);
+  std::cout << "Generating..." << std::endl;
   int steps = generate(model, sentence, total_steps, need_output);
   auto end = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration<double>(end - start).count();
-  printf("\nsteps/s:%lf\n", static_cast<double>(steps) / duration);
-  fflush(stdout);
+  std::cout << "\nsteps/s: " << (static_cast<double>(steps) / duration) << std::endl;
 
   return 0;
 }

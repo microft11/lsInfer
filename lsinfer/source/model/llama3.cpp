@@ -8,7 +8,6 @@
 #include <utility>
 #include "../op/kernels/cpu/rope_kernel.h"
 #include "../op/kernels/cuda/rope_kernel.cuh"
-#include "base/tick.h"
 namespace model {
 
 void LLama2Layers::to_cuda(std::shared_ptr<kernel::CudaConfig> config) {
