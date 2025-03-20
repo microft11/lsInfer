@@ -84,6 +84,7 @@ huggingface-cli download --resume-download meta-llama/Llama-3.2-1B --local-dir m
 - 导出模型：
 ```shell
 python3 path/to/tools/export.py Llama-3.2-1B.bin --hf=meta-llama/Llama-3.2-1B
+python3 lsInfer/tools/export_llama3.py llama-3.2-3B.bin --hf=Llama-3.2-3B-Instruct
 ```
 - 编译：
 ```shell
