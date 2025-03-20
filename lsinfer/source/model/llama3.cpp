@@ -8,6 +8,7 @@
 #include <utility>
 #include "../op/kernels/cpu/rope_kernel.h"
 #include "../op/kernels/cuda/rope_kernel.cuh"
+#include "base/tick.h"
 namespace model {
 
 void LLama2Layers::to_cuda(std::shared_ptr<kernel::CudaConfig> config) {
@@ -119,7 +120,7 @@ base::Status LLama2Model::init(base::DeviceType device_type) {
     cudaStreamCreate(&cuda_config_->stream);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
-      return error::InternalError("The cuda handle create failed.");
+      return error::InternalError("The cuda hanle create failed.");
     }
   }
 

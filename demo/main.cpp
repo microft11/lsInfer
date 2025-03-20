@@ -53,9 +53,9 @@ int main(int argc, char* argv[]) {
   options.add_options()("m,model", "Path to model checkpoint (e.g., out/model.bin)",
                         cxxopts::value<std::string>())("t,tokenizer", "Path to tokenizer",
                                                        cxxopts::value<std::string>())(
-      "d,device", "Device to use: cpu, cuda", cxxopts::value<std::string>()->default_value("cpu"))(
+      "d,device", "Device to use: cpu, cuda", cxxopts::value<std::string>()->default_value("cuda"))(
       "s,steps", "Number of generation steps", cxxopts::value<int>()->default_value("128"))(
-      "o,output", "Print generated text", cxxopts::value<bool>()->default_value("false"))(
+      "o,output", "Print generated text", cxxopts::value<bool>()->default_value("true"))(
       "h,help", "Print usage");
 
   auto result = options.parse(argc, argv);
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::string sentence = "a";
+  std::string sentence = "hello";
   auto start = std::chrono::steady_clock::now();
   std::cout << "Generating..." << std::endl;
   int steps = generate(model, sentence, total_steps, need_output);

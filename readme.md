@@ -71,8 +71,8 @@ python export.py llama2_7b.bin --meta-llama path/to/llama/model/7B
 
 ## 生成文本的方法
 ```shell
-./llama_infer llama2_7b.bin tokenizer.model
-
+# ./llama_infer llama2_7b.bin tokenizer.model
+./lsInfer/build/demo/llama_infer -m model/llama32_1bnq.bin -t model/tokenizer.model -d cuda
 ```
 
 # LLama3.2 推理
