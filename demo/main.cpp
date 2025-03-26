@@ -56,6 +56,7 @@ int main(int argc, char* argv[]) {
       "d,device", "Device to use: cpu, cuda", cxxopts::value<std::string>()->default_value("cuda"))(
       "s,steps", "Number of generation steps", cxxopts::value<int>()->default_value("128"))(
       "o,output", "Print generated text", cxxopts::value<bool>()->default_value("true"))(
+      "q,quant", "Use quantized model", cxxopts::value<bool>()->default_value("false"))(
       "h,help", "Print usage");
 
   auto result = options.parse(argc, argv);
@@ -77,6 +78,7 @@ int main(int argc, char* argv[]) {
   std::string device_str = result["device"].as<std::string>();
   int total_steps = result["steps"].as<int>();
   bool need_output = result["output"].as<bool>();
+  bool is_quant_model = result["quant"].as<bool>();
 
   // 设备映射
   base::DeviceType device_type = base::DeviceType::kDeviceUnknown;
@@ -90,7 +92,8 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  model::LLama2Model model(base::TokenizerType::kEncodeSpe, tokenizer_path, checkpoint_path, false);
+  model::LLama2Model model(base::TokenizerType::kEncodeSpe, tokenizer_path, checkpoint_path,
+                           is_quant_model);
 
   base::DeviceType base_device_type = (device_type == base::DeviceType::kDeviceCUDA)
                                           ? base::DeviceType::kDeviceCUDA

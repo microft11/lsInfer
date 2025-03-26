@@ -1,5 +1,4 @@
 #include "op/mha.h"
-#include "kernels/cpu/mha_kernel.h"
 #include "kernels/kernels_interface.h"
 namespace op {
 MultiHeadAttention::MultiHeadAttention(base::DeviceType device_type, int32_t layer_index,

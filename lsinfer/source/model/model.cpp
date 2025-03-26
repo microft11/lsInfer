@@ -1,7 +1,7 @@
 #include "model/model.h"
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 namespace model {
 Model::Model(base::TokenizerType tokenizer_type, base::ModelType model_type, std::string token_path,
              std::string model_path, bool is_quant_model)
@@ -81,10 +81,10 @@ base::Status Model::read_model_file() {
 
   struct stat sb;
   if (fstat(fd, &sb) == -1) {
-      close(fd);
-      return error::ModelParseError(
-          "Failed to retrieve the file size information from the model "
-          "file.");
+    close(fd);
+    return error::ModelParseError(
+        "Failed to retrieve the file size information from the model "
+        "file.");
   }
   raw_model_data_->file_size = sb.st_size;
 
@@ -230,8 +230,8 @@ std::pair<tensor::Tensor, tensor::Tensor> Model::slice_kv_cache(int32_t layer_id
 }
 
 tensor::Tensor Model::fill_input(const tensor::Tensor& pos_tensor,
-                                       const op::EmbeddingOutput& embedding_output,
-                                       bool is_prompt) const {
+                                 const op::EmbeddingOutput& embedding_output,
+                                 bool is_prompt) const {
   const int32_t pos = pos_tensor.index<int32_t>(0);
   auto [input_tokens, input_embeddings, input_token_num] = embedding_output;
 
