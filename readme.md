@@ -28,6 +28,12 @@ sudo apt-get -y install libarmadillo-dev
 sudo apt-get -y install libsentencepiece-dev # ubuntu版本低了这个库没有需要自己编译
 sudo apt-get -y install libgtest-dev
 sudo apt -y install libcxxopts-dev
+
+apt-get -y install libgoogle-glog-dev
+apt-get -y install libarmadillo-dev
+apt-get -y install libsentencepiece-dev
+apt-get -y install libgtest-dev
+apt -y install libcxxopts-dev
 ```
 
 ## Huggingface镜像站使用
