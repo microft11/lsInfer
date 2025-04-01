@@ -1,7 +1,10 @@
 #include "../kernels_interface.h"
 #include "argmax_kernel.cuh"
 #include "tensor/tensor.h"
+#include <hip/hip_runtime.h>
+
 namespace kernel {
+// 保留原有设备函数（HIP 完全兼容）
 __forceinline__ __device__ void warp_reduce_argmax(float& val, size_t& ptr) {
   float tmp_val;
   size_t tmp_ptr;
@@ -20,7 +23,7 @@ __forceinline__ __device__ void warp_reduce_argmax(float& val, size_t& ptr) {
 }
 
 __forceinline__ __device__ void block_reduce_argmax(float& val, size_t& ptr, float* shared_value,
-                                                    size_t* shared_ptr) {
+                                                  size_t* shared_ptr) {
   int lane_id = threadIdx.x % warpSize;
   int warp_id = threadIdx.x / warpSize;
 
@@ -46,6 +49,7 @@ __forceinline__ __device__ void block_reduce_argmax(float& val, size_t& ptr, flo
   }
 }
 
+// 内核函数保持不变
 __global__ void argmax_kernel_fp32(const float* input_ptr, size_t size, size_t* output_idx) {
   __shared__ size_t shared_max_ptr[32];
   __shared__ float shared_max_value[32];
@@ -70,19 +74,23 @@ __global__ void argmax_kernel_fp32(const float* input_ptr, size_t size, size_t* 
   }
 }
 
-size_t argmax_kernel_cu(const float* input_ptr, size_t size, void* stream) {
-  std::shared_ptr<base::DeviceAllocator> alloc_cu =
-      base::CUDADeviceAllocatorFactory::get_instance();
-  size_t* index = static_cast<size_t*>(alloc_cu->allocate(sizeof(size_t)));
+// 替换 CUDA API 为 HIP API
+size_t argmax_kernel_hip(const float* input_ptr, size_t size, void* stream) {
+  // 替换为 HIP 的内存分配器（需根据项目实际实现调整）
+  std::shared_ptr<base::DeviceAllocator> alloc_hip =
+      base::HIPDeviceAllocatorFactory::get_instance();  // 假设存在 HIP 分配器
+  size_t* index = static_cast<size_t*>(alloc_hip->allocate(sizeof(size_t)));
   size_t output_index = 0;
+
   if (!stream) {
     argmax_kernel_fp32<<<1, 512>>>(input_ptr, size, index);
-    cudaMemcpy(&output_index, index, sizeof(size_t), cudaMemcpyDeviceToHost);
+    hipMemcpy(&output_index, index, sizeof(size_t), hipMemcpyDeviceToHost);
   } else {
-    cudaStream_t stream_ = static_cast<cudaStream_t>(stream);
+    hipStream_t stream_ = static_cast<hipStream_t>(stream);
     argmax_kernel_fp32<<<1, 512, 0, stream_>>>(input_ptr, size, index);
-    cudaMemcpyAsync(&output_index, index, sizeof(size_t), cudaMemcpyDeviceToHost, stream_);
+    hipMemcpyAsync(&output_index, index, sizeof(size_t), hipMemcpyDeviceToHost, stream_);
   }
   return output_index;
 }
+
 }  // namespace kernel

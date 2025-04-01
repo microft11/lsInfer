@@ -1,6 +1,10 @@
 #include "emb_kernel.cuh"
+#include <hip/hip_runtime.h>  // 直接使用 HIP 头文件
+
 namespace kernel {
-__global__ void emb_kernel_cu_fp32(int32_t vocab_size, int32_t token_num, int32_t weight_dim,
+
+// 内核函数命名改为 _hip 以区分（可选）
+__global__ void emb_kernel_hip_fp32(int32_t vocab_size, int32_t token_num, int32_t weight_dim,
                                    const int32_t* input_ptr, const float* weight_ptr,
                                    float* output_ptr) {
   int32_t token_idx = blockIdx.x;
@@ -20,30 +24,34 @@ __global__ void emb_kernel_cu_fp32(int32_t vocab_size, int32_t token_num, int32_
   }
 }
 
-void emb_kernel_cu(const tensor::Tensor& input, const tensor::Tensor& weight,
+void emb_kernel_hip(const tensor::Tensor& input, const tensor::Tensor& weight,
                    const tensor::Tensor& output, int32_t vocab_size, void* stream) {
-  tensor::Tensor input_cu;
-  if (input.device_type() != base::DeviceType::kDeviceCUDA) {
-    input_cu = input.clone();
-    input_cu.to_cuda();
+  tensor::Tensor input_hip;
+  if (input.device_type() != base::DeviceType::kDeviceHIP) {  // 修改：kDeviceCUDA -> kDeviceHIP
+    input_hip = input.clone();
+    input_hip.to_hip();  // 假设有 to_hip() 方法，类似 to_cuda()
   }
+
   const int32_t input_num = static_cast<int32_t>(input.size());
   const int32_t weight_dim = weight.get_dim(1);
+  
+  // 检查设备类型是否为 HIP
   CHECK(weight.device_type() == output.device_type());
-  CHECK(output.device_type() == base::DeviceType::kDeviceCUDA);
+  CHECK(output.device_type() == base::DeviceType::kDeviceHIP);  // 修改：kDeviceCUDA -> kDeviceHIP
 
   constexpr int32_t max_seq_len = 512;
   constexpr int32_t thread_num = 128;
-  int32_t* in_ptr = input_cu.ptr<int32_t>();
+  int32_t* in_ptr = input_hip.ptr<int32_t>();
   float* wei_ptr = const_cast<float*>(weight.ptr<float>());
   float* out_ptr = const_cast<float*>(output.ptr<float>());
+
   if (stream) {
-    cudaStream_t stream_ = static_cast<cudaStream_t>(stream);
-    emb_kernel_cu_fp32<<<max_seq_len, thread_num, 0, stream_>>>(vocab_size, input_num, weight_dim,
-                                                                in_ptr, wei_ptr, out_ptr);
+    hipStream_t stream_ = static_cast<hipStream_t>(stream);  // 修改：cudaStream_t -> hipStream_t
+    emb_kernel_hip_fp32<<<max_seq_len, thread_num, 0, stream_>>>(
+        vocab_size, input_num, weight_dim, in_ptr, wei_ptr, out_ptr);
   } else {
-    emb_kernel_cu_fp32<<<max_seq_len, thread_num>>>(vocab_size, input_num, weight_dim, in_ptr,
-                                                    wei_ptr, out_ptr);
+    emb_kernel_hip_fp32<<<max_seq_len, thread_num>>>(
+        vocab_size, input_num, weight_dim, in_ptr, wei_ptr, out_ptr);
   }
 }
 }  // namespace kernel
