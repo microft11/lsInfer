@@ -1,12 +1,14 @@
 #ifndef KUIPER_INCLUDE_TENSOR_TENSOR_H_
 #define KUIPER_INCLUDE_TENSOR_TENSOR_H_
-#include <driver_types.h>
+
+#include <hip/hip_runtime.h>
 #include <glog/logging.h>
 #include <armadillo>
 #include <memory>
 #include <vector>
 #include "base/base.h"
 #include "base/buffer.h"
+
 namespace tensor {
 
 class Tensor {
@@ -32,7 +34,7 @@ class Tensor {
 
   void to_cpu();
 
-  void to_cuda(cudaStream_t stream = nullptr);
+  void to_hip(hipStream_t stream = nullptr);  // 替换：to_cuda -> to_hip
 
   bool is_empty() const;
 
@@ -94,50 +96,42 @@ class Tensor {
   base::DataType data_type_ = base::DataType::kDataTypeUnknown;
 };
 
+// 模板函数实现（保持不变）
 template <typename T>
 T& Tensor::index(int64_t offset) {
   CHECK_GE(offset, 0);
   CHECK_LT(offset, this->size());
-  T& val = *(reinterpret_cast<T*>(buffer_->ptr()) + offset);
-  return val;
+  return *(reinterpret_cast<T*>(buffer_->ptr()) + offset);
 }
 
 template <typename T>
 const T& Tensor::index(int64_t offset) const {
   CHECK_GE(offset, 0);
   CHECK_LT(offset, this->size());
-  const T& val = *(reinterpret_cast<T*>(buffer_->ptr()) + offset);
-  return val;
+  return *(reinterpret_cast<const T*>(buffer_->ptr()) + offset);
 }
 
 template <typename T>
 const T* Tensor::ptr() const {
-  if (!buffer_) {
-    return nullptr;
-  }
-  return const_cast<const T*>(reinterpret_cast<T*>(buffer_->ptr()));
+  return buffer_ ? reinterpret_cast<const T*>(buffer_->ptr()) : nullptr;
 }
 
 template <typename T>
 T* Tensor::ptr() {
-  if (!buffer_) {
-    return nullptr;
-  }
-  return reinterpret_cast<T*>(buffer_->ptr());
+  return buffer_ ? reinterpret_cast<T*>(buffer_->ptr()) : nullptr;
 }
 
 template <typename T>
 T* Tensor::ptr(int64_t index) {
-  CHECK(buffer_ != nullptr && buffer_->ptr() != nullptr)
-      << "The data area buffer of this tensor is empty or it points to a null pointer.";
-  return const_cast<T*>(reinterpret_cast<const T*>(buffer_->ptr())) + index;
+  CHECK(buffer_ && buffer_->ptr()) << "Tensor buffer is empty or null.";
+  return reinterpret_cast<T*>(buffer_->ptr()) + index;
 }
 
 template <typename T>
 const T* Tensor::ptr(int64_t index) const {
-  CHECK(buffer_ != nullptr && buffer_->ptr() != nullptr)
-      << "The data area buffer of this tensor is empty or it points to a null pointer.";
+  CHECK(buffer_ && buffer_->ptr()) << "Tensor buffer is empty or null.";
   return reinterpret_cast<const T*>(buffer_->ptr()) + index;
 }
+
 }  // namespace tensor
 #endif  // KUIPER_INCLUDE_TENSOR_TENSOR_H_
