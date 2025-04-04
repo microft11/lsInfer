@@ -1,37 +1,40 @@
 #include <glog/logging.h>
-#include "utils.cuh"
-__global__ void test_function_cu(float* cu_arr, int32_t size, float value) {
+#include <hip/hip_runtime.h>
+#include "utils.cuh" 
+
+// HIP 版本的内核函数（命名改为 _hip）
+__global__ void test_function_hip(float* hip_arr, int32_t size, float value) {
   int tid = blockDim.x * blockIdx.x + threadIdx.x;
   if (tid >= size) {
     return;
   }
-  cu_arr[tid] = value;
+  hip_arr[tid] = value;
 }
 
+// 包装函数（HIP 实现）
 void test_function(float* arr, int32_t size, float value) {
   if (!arr) {
     return;
   }
-  float* cu_arr = nullptr;
-  cudaMalloc(&cu_arr, sizeof(float) * size);
-  cudaDeviceSynchronize();
-  const cudaError_t err2 = cudaGetLastError();
-  test_function_cu<<<1, size>>>(cu_arr, size, value);
-  cudaDeviceSynchronize();
-  const cudaError_t err = cudaGetLastError();
-  CHECK_EQ(err, cudaSuccess);
+  float* hip_arr = nullptr;
+  HIP_CHECK(hipMalloc(&hip_arr, sizeof(float) * size));  // 替换 cudaMalloc
+  HIP_CHECK(hipDeviceSynchronize());
 
-  cudaMemcpy(arr, cu_arr, size * sizeof(float), cudaMemcpyDeviceToHost);
-  cudaFree(cu_arr);
+  // 调用 HIP 内核
+  test_function_hip<<<1, size>>>(hip_arr, size, value);  // 内核名改为 _hip
+  HIP_CHECK(hipDeviceSynchronize());
+
+  // 拷贝回主机
+  HIP_CHECK(hipMemcpy(arr, hip_arr, size * sizeof(float), hipMemcpyDeviceToHost));
+  HIP_CHECK(hipFree(hip_arr));  // 替换 cudaFree
 }
 
-void set_value_cu(float* arr_cu, int32_t size, float value) {
+// HIP 版本的 set_value
+void set_value_hip(float* arr_hip, int32_t size, float value) {
   int32_t threads_num = 512;
   int32_t block_num = (size + threads_num - 1) / threads_num;
-  cudaDeviceSynchronize();
-  const cudaError_t err2 = cudaGetLastError();
-  test_function_cu<<<block_num, threads_num>>>(arr_cu, size, value);
-  cudaDeviceSynchronize();
-  const cudaError_t err = cudaGetLastError();
-  CHECK_EQ(err, cudaSuccess);
+  HIP_CHECK(hipDeviceSynchronize());
+
+  test_function_hip<<<block_num, threads_num>>>(arr_hip, size, value);  // 使用 HIP 内核
+  HIP_CHECK(hipDeviceSynchronize());
 }

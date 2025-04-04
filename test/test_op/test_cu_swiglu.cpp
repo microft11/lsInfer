@@ -1,10 +1,10 @@
-#include <cuda_runtime_api.h>
+#include <hip/hip_runtime.h> 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include "../source/op/kernels/kernels_interface.h"
 #include "base/buffer.h"
 TEST(test_swiglu_cu, swiglu_nostream) {
-  auto alloc_cu = base::CUDADeviceAllocatorFactory::get_instance();
+  auto alloc_cu = base::HIPDeviceAllocatorFactory::get_instance();
   auto alloc_cpu = base::CPUDeviceAllocatorFactory::get_instance();
 
   int32_t size = 32 * 151;
@@ -24,11 +24,11 @@ TEST(test_swiglu_cu, swiglu_nostream) {
   tensor::Tensor in_cu = in_cpu.clone();
   tensor::Tensor wei_cu = wei_cpu.clone();
   tensor::Tensor out_cu = out_cpu.clone();
-  in_cu.to_cuda(nullptr);
-  wei_cu.to_cuda(nullptr);
-  out_cu.to_cuda(nullptr);
+  in_cu.to_hip(nullptr);
+  wei_cu.to_hip(nullptr);
+  out_cu.to_hip(nullptr);
 
-  kernel::get_swiglu_kernel(base::DeviceType::kDeviceCUDA)(in_cu, wei_cu, out_cu,
+  kernel::get_swiglu_kernel(base::DeviceType::kDeviceHIP)(in_cu, wei_cu, out_cu,
                                                            nullptr);
   out_cu.to_cpu();
 
@@ -41,7 +41,7 @@ TEST(test_swiglu_cu, swiglu_nostream) {
 }
 
 TEST(test_swiglu_cu, swiglu_stream) {
-  auto alloc_cu = base::CUDADeviceAllocatorFactory::get_instance();
+  auto alloc_cu = base::HIPDeviceAllocatorFactory::get_instance();
   auto alloc_cpu = base::CPUDeviceAllocatorFactory::get_instance();
 
   int32_t size = 32 * 151;
@@ -61,13 +61,13 @@ TEST(test_swiglu_cu, swiglu_stream) {
   tensor::Tensor in_cu = in_cpu.clone();
   tensor::Tensor wei_cu = wei_cpu.clone();
   tensor::Tensor out_cu = out_cpu.clone();
-  in_cu.to_cuda(nullptr);
-  wei_cu.to_cuda(nullptr);
-  out_cu.to_cuda(nullptr);
-  cudaStream_t stream;
-  cudaStreamCreate(&stream);
+  in_cu.to_hip(nullptr);
+  wei_cu.to_hip(nullptr);
+  out_cu.to_hip(nullptr);
+  hipStream_t stream;
+  hipStreamCreate(&stream);
 
-  kernel::get_swiglu_kernel(base::DeviceType::kDeviceCUDA)(in_cu, wei_cu, out_cu, stream);
+  kernel::get_swiglu_kernel(base::DeviceType::kDeviceHIP)(in_cu, wei_cu, out_cu, stream);
   out_cu.to_cpu();
 
   kernel::get_swiglu_kernel(base::DeviceType::kDeviceCPU)(in_cpu, wei_cpu, out_cpu,
@@ -76,5 +76,5 @@ TEST(test_swiglu_cu, swiglu_stream) {
   for (int i = 0; i < size; ++i) {
     ASSERT_NEAR(out_cu.index<float>(i), out_cpu.index<float>(i), 1e-5f);
   }
-  cudaStreamDestroy(stream);
+  hipStreamDestroy(stream);
 }

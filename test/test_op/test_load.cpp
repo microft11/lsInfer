@@ -1,4 +1,4 @@
-#include <cuda_runtime_api.h>
+#include <hip/hip_runtime.h> 
 #include <fcntl.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>

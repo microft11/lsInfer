@@ -1,11 +1,11 @@
-//#include <cuda_runtime_api.h>
+// #include <hip/hip_runtime.h> 
 //#include <glog/logging.h>
 //#include <gtest/gtest.h>
 //#include "../source/op/kernels/kernels_interface.h"
 //#include "../utils.cuh"
 //#include "base/buffer.h"
 //TEST(test_rope_cu, rope_nostream) {
-//  auto alloc_cu = base::CUDADeviceAllocatorFactory::get_instance();
+//  auto alloc_cu = base::HIPDeviceAllocatorFactory::get_instance();
 //  auto alloc_cpu = base::CPUDeviceAllocatorFactory::get_instance();
 //  int32_t dim = 256;
 //  int32_t head_size = 64;
@@ -27,15 +27,15 @@
 //
 //  tensor::Tensor input_q_gpu = input_q_cpu.clone();
 //  tensor::Tensor input_k_gpu = input_k_cpu.clone();
-//  input_q_gpu.to_cuda(nullptr);
-//  input_k_gpu.to_cuda(nullptr);
+//  input_q_gpu.to_hip(nullptr);
+//  input_k_gpu.to_hip(nullptr);
 //
 //  kernel::get_rope_kernel(base::DeviceType::kDeviceCPU)(
 //      dim, kv_dim, head_size, input_q_cpu, input_k_cpu, input_pos, nullptr);
 //
-//  kernel::get_rope_kernel(base::DeviceType::kDeviceCUDA)(
+//  kernel::get_rope_kernel(base::DeviceType::kDeviceHIP)(
 //      dim, kv_dim, head_size, input_q_gpu, input_k_gpu, input_pos, nullptr);
-//  cudaDeviceSynchronize();
+//  hipDeviceSynchronize();
 //
 //  input_q_gpu.to_cpu();
 //  input_k_gpu.to_cpu();
@@ -48,7 +48,7 @@
 //}
 //
 //TEST(test_rope_cu, rope_nostream2) {
-//  auto alloc_cu = base::CUDADeviceAllocatorFactory::get_instance();
+//  auto alloc_cu = base::HIPDeviceAllocatorFactory::get_instance();
 //  auto alloc_cpu = base::CPUDeviceAllocatorFactory::get_instance();
 //  int32_t dim = 512;
 //  int32_t head_size = 128;
@@ -70,15 +70,15 @@
 //
 //  tensor::Tensor input_q_gpu = input_q_cpu.clone();
 //  tensor::Tensor input_k_gpu = input_k_cpu.clone();
-//  input_q_gpu.to_cuda(nullptr);
-//  input_k_gpu.to_cuda(nullptr);
+//  input_q_gpu.to_hip(nullptr);
+//  input_k_gpu.to_hip(nullptr);
 //
 //  kernel::get_rope_kernel(base::DeviceType::kDeviceCPU)(
 //      dim, kv_dim, head_size, input_q_cpu, input_k_cpu, input_pos, nullptr);
 //
-//  kernel::get_rope_kernel(base::DeviceType::kDeviceCUDA)(
+//  kernel::get_rope_kernel(base::DeviceType::kDeviceHIP)(
 //      dim, kv_dim, head_size, input_q_gpu, input_k_gpu, input_pos, nullptr);
-//  cudaDeviceSynchronize();
+//  hipDeviceSynchronize();
 //
 //  input_q_gpu.to_cpu();
 //  input_k_gpu.to_cpu();
@@ -91,7 +91,7 @@
 //}
 //
 //TEST(test_rope_cu, rope_stream1) {
-//  auto alloc_cu = base::CUDADeviceAllocatorFactory::get_instance();
+//  auto alloc_cu = base::HIPDeviceAllocatorFactory::get_instance();
 //  auto alloc_cpu = base::CPUDeviceAllocatorFactory::get_instance();
 //  int32_t dim = 512;
 //  int32_t head_size = 128;
@@ -105,8 +105,8 @@
 //  std::uniform_real_distribution<float> dist(0.f, 1.f);
 //  tensor::Tensor input_q_cpu(base::DataType::kDataTypeFp32, dim, true, alloc_cpu);
 //  tensor::Tensor input_k_cpu(base::DataType::kDataTypeFp32, dim, true, alloc_cpu);
-//  cudaStream_t stream;
-//  cudaStreamCreate(&stream);
+//  hipStream_t stream;
+//  hipStreamCreate(&stream);
 //  for (int i = 0; i < dim; ++i) {
 //    input_q_cpu.index<float>(i) = dist(mt);
 //    input_k_cpu.index<float>(i) = dist(mt);
@@ -114,15 +114,15 @@
 //
 //  tensor::Tensor input_q_gpu = input_q_cpu.clone();
 //  tensor::Tensor input_k_gpu = input_k_cpu.clone();
-//  input_q_gpu.to_cuda(nullptr);
-//  input_k_gpu.to_cuda(nullptr);
+//  input_q_gpu.to_hip(nullptr);
+//  input_k_gpu.to_hip(nullptr);
 //
 //  kernel::get_rope_kernel(base::DeviceType::kDeviceCPU)(
 //      dim, kv_dim, head_size, input_q_cpu, input_k_cpu, input_pos, nullptr);
 //
-//  kernel::get_rope_kernel(base::DeviceType::kDeviceCUDA)(
+//  kernel::get_rope_kernel(base::DeviceType::kDeviceHIP)(
 //      dim, kv_dim, head_size, input_q_gpu, input_k_gpu, input_pos, stream);
-//  cudaDeviceSynchronize();
+//  hipDeviceSynchronize();
 //
 //  input_q_gpu.to_cpu();
 //  input_k_gpu.to_cpu();

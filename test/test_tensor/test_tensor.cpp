@@ -1,4 +1,4 @@
-#include <cuda_runtime_api.h>
+#include <hip/hip_runtime.h> 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <tensor/tensor.h>
@@ -7,7 +7,7 @@
 
 TEST(test_tensor, to_cpu) {
   using namespace base;
-  auto alloc_cu = CUDADeviceAllocatorFactory::get_instance();
+  auto alloc_cu = HIPDeviceAllocatorFactory::get_instance();
   tensor::Tensor t1_cu(DataType::kDataTypeFp32, 32, 32, true, alloc_cu);
   ASSERT_EQ(t1_cu.is_empty(), false);
   set_value_cu(t1_cu.ptr<float>(), 32 * 32);
@@ -20,21 +20,21 @@ TEST(test_tensor, to_cpu) {
   }
 }
 
-TEST(test_tensor, clone_cuda) {
+TEST(test_tensor, clone_hip) {
   using namespace base;
-  auto alloc_cu = CUDADeviceAllocatorFactory::get_instance();
+  auto alloc_cu = HIPDeviceAllocatorFactory::get_instance();
   tensor::Tensor t1_cu(DataType::kDataTypeFp32, 32, 32, true, alloc_cu);
   ASSERT_EQ(t1_cu.is_empty(), false);
   set_value_cu(t1_cu.ptr<float>(), 32 * 32, 1.f);
 
   tensor::Tensor t2_cu = t1_cu.clone();
   float* p2 = new float[32 * 32];
-  cudaMemcpy(p2, t2_cu.ptr<float>(), sizeof(float) * 32 * 32, cudaMemcpyDeviceToHost);
+  hipMemcpy(p2, t2_cu.ptr<float>(), sizeof(float) * 32 * 32, hipMemcpyDeviceToHost);
   for (int i = 0; i < 32 * 32; ++i) {
     ASSERT_EQ(p2[i], 1.f);
   }
 
-  cudaMemcpy(p2, t1_cu.ptr<float>(), sizeof(float) * 32 * 32, cudaMemcpyDeviceToHost);
+  hipMemcpy(p2, t1_cu.ptr<float>(), sizeof(float) * 32 * 32, hipMemcpyDeviceToHost);
   for (int i = 0; i < 32 * 32; ++i) {
     ASSERT_EQ(p2[i], 1.f);
   }
@@ -83,9 +83,9 @@ TEST(test_tensor, to_cu) {
     *(p1 + i) = 1.f;
   }
 
-  t1_cpu.to_cuda();
+  t1_cpu.to_hip();
   float* p2 = new float[32 * 32];
-  cudaMemcpy(p2, t1_cpu.ptr<float>(), sizeof(float) * 32 * 32, cudaMemcpyDeviceToHost);
+  hipMemcpy(p2, t1_cpu.ptr<float>(), sizeof(float) * 32 * 32, hipMemcpyDeviceToHost);
   for (int i = 0; i < 32 * 32; ++i) {
     ASSERT_EQ(*(p2 + i), 1.f);
   }

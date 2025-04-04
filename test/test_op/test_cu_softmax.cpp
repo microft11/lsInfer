@@ -1,11 +1,11 @@
-// #include <cuda_runtime_api.h>
+// #include <hip/hip_runtime.h> 
 // #include <glog/logging.h>
 // #include <gtest/gtest.h>
 // #include "../source/op/kernels/kernels_interface.h"
 // #include "../utils.cuh"
 // #include "base/buffer.h"
 // TEST(test_softmax_cu, softmax_nostream) {
-//   auto alloc_cu = base::CUDADeviceAllocatorFactory::get_instance();
+//   auto alloc_cu = base::HIPDeviceAllocatorFactory::get_instance();
 //   auto alloc_cpu = base::CPUDeviceAllocatorFactory::get_instance();
 //
 //   int32_t size = 32 * 151;
@@ -18,9 +18,9 @@
 //   }
 //
 //   tensor::Tensor in_cu = in_cpu.clone();
-//   in_cu.to_cuda();
+//   in_cu.to_hip();
 //
-//   kernel::get_softmax_kernel(base::DeviceType::kDeviceCUDA)(in_cu, nullptr);
+//   kernel::get_softmax_kernel(base::DeviceType::kDeviceHIP)(in_cu, nullptr);
 //   kernel::get_softmax_kernel(base::DeviceType::kDeviceCPU)(in_cpu, nullptr);
 //
 //   in_cu.to_cpu();
@@ -32,7 +32,7 @@
 //
 //
 // TEST(test_softmax_cu, softmax_stream) {
-//   auto alloc_cu = base::CUDADeviceAllocatorFactory::get_instance();
+//   auto alloc_cu = base::HIPDeviceAllocatorFactory::get_instance();
 //   auto alloc_cpu = base::CPUDeviceAllocatorFactory::get_instance();
 //
 //   int32_t size = 72 * 151;
@@ -45,11 +45,11 @@
 //   }
 //
 //   tensor::Tensor in_cu = in_cpu.clone();
-//   in_cu.to_cuda();
+//   in_cu.to_hip();
 //
-//   cudaStream_t stream;
-//   cudaStreamCreate(&stream);
-//   kernel::get_softmax_kernel(base::DeviceType::kDeviceCUDA)(in_cu, stream);
+//   hipStream_t stream;
+//   hipStreamCreate(&stream);
+//   kernel::get_softmax_kernel(base::DeviceType::kDeviceHIP)(in_cu, stream);
 //   kernel::get_softmax_kernel(base::DeviceType::kDeviceCPU)(in_cpu, nullptr);
 //
 //   in_cu.to_cpu();
@@ -61,7 +61,7 @@
 //
 //
 // TEST(test_softmax_cu, softmax_stream2) {
-//   auto alloc_cu = base::CUDADeviceAllocatorFactory::get_instance();
+//   auto alloc_cu = base::HIPDeviceAllocatorFactory::get_instance();
 //   auto alloc_cpu = base::CPUDeviceAllocatorFactory::get_instance();
 //
 //   int32_t size = 72 * 18;
@@ -76,11 +76,11 @@
 //   }
 //
 //   tensor::Tensor in_cu = in_cpu.clone();
-//   in_cu.to_cuda();
+//   in_cu.to_hip();
 //
-//   cudaStream_t stream;
-//   cudaStreamCreate(&stream);
-//   kernel::get_softmax_kernel(base::DeviceType::kDeviceCUDA)(in_cu, stream);
+//   hipStream_t stream;
+//   hipStreamCreate(&stream);
+//   kernel::get_softmax_kernel(base::DeviceType::kDeviceHIP)(in_cu, stream);
 //   kernel::get_softmax_kernel(base::DeviceType::kDeviceCPU)(in_cpu, nullptr);
 //   in_cu.to_cpu();
 //
@@ -91,7 +91,7 @@
 //
 //
 // TEST(test_softmax_cu, softmax_stream3) {
-//   auto alloc_cu = base::CUDADeviceAllocatorFactory::get_instance();
+//   auto alloc_cu = base::HIPDeviceAllocatorFactory::get_instance();
 //   auto alloc_cpu = base::CPUDeviceAllocatorFactory::get_instance();
 //
 //   int32_t size = 1;
@@ -106,11 +106,11 @@
 //   }
 //
 //   tensor::Tensor in_cu = in_cpu.clone();
-//   in_cu.to_cuda();
+//   in_cu.to_hip();
 //
-//   cudaStream_t stream;
-//   cudaStreamCreate(&stream);
-//   kernel::get_softmax_kernel(base::DeviceType::kDeviceCUDA)(in_cu, stream);
+//   hipStream_t stream;
+//   hipStreamCreate(&stream);
+//   kernel::get_softmax_kernel(base::DeviceType::kDeviceHIP)(in_cu, stream);
 //   kernel::get_softmax_kernel(base::DeviceType::kDeviceCPU)(in_cpu, nullptr);
 //   in_cu.to_cpu();
 //
