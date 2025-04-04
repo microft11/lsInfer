@@ -1,6 +1,3 @@
-//
-// Created by fss on 9/19/24.
-//
 #include <cuda_runtime_api.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
