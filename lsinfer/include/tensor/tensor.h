@@ -34,7 +34,7 @@ class Tensor {
 
   void to_cpu();
 
-  void to_hip(hipStream_t stream = nullptr);  // 替换：to_cuda -> to_hip
+  void to_hip(hipStream_t stream = nullptr);
 
   bool is_empty() const;
 

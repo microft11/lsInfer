@@ -26,11 +26,11 @@ base::Status RoPELayer::forward() {
   tensor::Tensor cos_cache = this->get_input(4);
 
   if (device_type_ == base::DeviceType::kDeviceCUDA) {
-    CHECK(cuda_config_ != nullptr);
+    CHECK(hip_config_ != nullptr);
   }
   kernel::get_rope_kernel(device_type_)(dim_, kv_dim_, head_size_, input_q, input_k, input_pos,
                                         sin_cache, cos_cache,
-                                        cuda_config_ ? cuda_config_->stream : nullptr);
+                                        hip_config_ ? hip_config_->stream : nullptr);
   return base::error::Success();
 }
 

@@ -1,6 +1,5 @@
 #include "tensor/tensor.h"
-#include <cuda_device_runtime_api.h>
-#include <cuda_runtime.h>
+#include <hip/hip_runtime.h> 
 #include <glog/logging.h>
 #include <numeric>
 
@@ -101,20 +100,25 @@ Tensor::Tensor(base::DataType data_type, std::vector<int32_t> dims, bool need_al
   }
 }
 
-void Tensor::to_cuda(cudaStream_t stream) {
+void Tensor::to_hip(hipStream_t stream) {  // 修改：to_cuda -> to_hip
   CHECK_NE(buffer_, nullptr);
   const base::DeviceType device_type = this->device_type();
   if (device_type == base::DeviceType::kDeviceUnknown) {
     LOG(ERROR) << "The device type of the tensor is unknown.";
   } else if (device_type == base::DeviceType::kDeviceCPU) {
     size_t byte_size = this->byte_size();
-    auto cu_alloc = base::CUDADeviceAllocatorFactory::get_instance();
-    auto cu_buffer = std::make_shared<base::Buffer>(byte_size, cu_alloc);
-    cu_alloc->memcpy(buffer_->ptr(), cu_buffer->ptr(), byte_size, base::MemcpyKind::kMemcpyCPU2CUDA,
-                     stream);
-    this->buffer_ = cu_buffer;
+    auto hip_alloc = base::HIPDeviceAllocatorFactory::get_instance();  // 修改：CUDADeviceAllocator -> HIPDeviceAllocator
+    auto hip_buffer = std::make_shared<base::Buffer>(byte_size, hip_alloc);
+    hip_alloc->memcpy(
+        buffer_->ptr(), 
+        hip_buffer->ptr(), 
+        byte_size, 
+        base::MemcpyKind::kMemcpyCPU2HIP,  // 修改：kMemcpyCPU2CUDA -> kMemcpyCPU2HIP
+        stream
+    );
+    this->buffer_ = hip_buffer;
   } else {
-    LOG(INFO) << "The device type of the tensor is already cuda.";
+    LOG(INFO) << "The device type of the tensor is already HIP.";
   }
 }
 
@@ -124,15 +128,19 @@ void Tensor::to_cpu() {
 
   if (device_type == base::DeviceType::kDeviceUnknown) {
     LOG(ERROR) << "The device type of the tensor is unknown.";
-  } else if (device_type == base::DeviceType::kDeviceCUDA) {
+  } else if (device_type == base::DeviceType::kDeviceHIP) {  // 修改：kDeviceCUDA -> kDeviceHIP
     size_t byte_size = this->byte_size();
     auto cpu_alloc = base::CPUDeviceAllocatorFactory::get_instance();
     auto cpu_buffer = std::make_shared<base::Buffer>(byte_size, cpu_alloc);
-    cpu_alloc->memcpy(buffer_->ptr(), cpu_buffer->ptr(), byte_size,
-                      base::MemcpyKind::kMemcpyCUDA2CPU);
+    cpu_alloc->memcpy(
+        buffer_->ptr(), 
+        cpu_buffer->ptr(), 
+        byte_size,
+        base::MemcpyKind::kMemcpyHIP2CPU  // 修改：kMemcpyCUDA2CPU -> kMemcpyHIP2CPU
+    );
     this->buffer_ = cpu_buffer;
   } else {
-    LOG(INFO) << "The device type of the tensor is already cpu.";
+    LOG(INFO) << "The device type of the tensor is already CPU.";
   }
 }
 

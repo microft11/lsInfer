@@ -1,13 +1,16 @@
-#include <cuda_runtime_api.h>
+#include <hip/hip_runtime.h>  // 替换为 HIP 头文件
 #include "base/alloc.h"
+
 namespace base {
 
-CUDADeviceAllocator::CUDADeviceAllocator() : DeviceAllocator(DeviceType::kDeviceCUDA) {}
+// 修改类名：CUDADeviceAllocator -> HIPDeviceAllocator
+HIPDeviceAllocator::HIPDeviceAllocator() : DeviceAllocator(DeviceType::kDeviceHIP) {}
 
-void* CUDADeviceAllocator::allocate(size_t byte_size) const {
+void* HIPDeviceAllocator::allocate(size_t byte_size) const {
   int id = -1;
-  cudaError_t state = cudaGetDevice(&id);
-  CHECK(state == cudaSuccess);
+  hipError_t state = hipGetDevice(&id);  // 替换：cudaGetDevice -> hipGetDevice
+  CHECK(state == hipSuccess);  // 替换：cudaSuccess -> hipSuccess
+  
   if (byte_size > 1024 * 1024) {
     auto& big_buffers = big_buffers_map_[id];
     int sel_id = -1;
@@ -25,12 +28,12 @@ void* CUDADeviceAllocator::allocate(size_t byte_size) const {
     }
 
     void* ptr = nullptr;
-    state = cudaMalloc(&ptr, byte_size);
-    if (cudaSuccess != state) {
+    state = hipMalloc(&ptr, byte_size);  // 替换：cudaMalloc -> hipMalloc
+    if (hipSuccess != state) {  // 替换：cudaSuccess -> hipSuccess
       char buf[256];
       snprintf(buf, 256,
-               "Error: CUDA error when allocating %lu MB memory! maybe there's no enough memory "
-               "left on  device.",
+               "Error: HIP error when allocating %lu MB memory! Maybe there's no enough memory "
+               "left on device.",
                byte_size >> 20);
       LOG(ERROR) << buf;
       return nullptr;
@@ -39,63 +42,65 @@ void* CUDADeviceAllocator::allocate(size_t byte_size) const {
     return ptr;
   }
 
-  auto& cuda_buffers = cuda_buffers_map_[id];
-  for (int i = 0; i < cuda_buffers.size(); i++) {
-    if (cuda_buffers[i].byte_size >= byte_size && !cuda_buffers[i].busy) {
-      cuda_buffers[i].busy = true;
-      no_busy_cnt_[id] -= cuda_buffers[i].byte_size;
-      return cuda_buffers[i].data;
+  auto& hip_buffers = hip_buffers_map_[id];  // 替换：cuda_buffers -> hip_buffers
+  for (int i = 0; i < hip_buffers.size(); i++) {
+    if (hip_buffers[i].byte_size >= byte_size && !hip_buffers[i].busy) {
+      hip_buffers[i].busy = true;
+      no_busy_cnt_[id] -= hip_buffers[i].byte_size;
+      return hip_buffers[i].data;
     }
   }
+  
   void* ptr = nullptr;
-  state = cudaMalloc(&ptr, byte_size);
-  if (cudaSuccess != state) {
+  state = hipMalloc(&ptr, byte_size);  // 替换：cudaMalloc -> hipMalloc
+  if (hipSuccess != state) {  // 替换：cudaSuccess -> hipSuccess
     char buf[256];
     snprintf(buf, 256,
-             "Error: CUDA error when allocating %lu MB memory! maybe there's no enough memory "
-             "left on  device.",
+             "Error: HIP error when allocating %lu MB memory! Maybe there's no enough memory "
+             "left on device.",
              byte_size >> 20);
     LOG(ERROR) << buf;
     return nullptr;
   }
-  cuda_buffers.emplace_back(ptr, byte_size, true);
+  hip_buffers.emplace_back(ptr, byte_size, true);
   return ptr;
 }
 
-void CUDADeviceAllocator::release(void* ptr) const {
+void HIPDeviceAllocator::release(void* ptr) const {
   if (!ptr) {
     return;
   }
-  if (cuda_buffers_map_.empty()) {
+  if (hip_buffers_map_.empty()) {  // 替换：cuda_buffers_map_ -> hip_buffers_map_
     return;
   }
-  cudaError_t state = cudaSuccess;
-  for (auto& it : cuda_buffers_map_) {
+  
+  hipError_t state = hipSuccess;  // 替换：cudaSuccess -> hipSuccess
+  for (auto& it : hip_buffers_map_) {
     if (no_busy_cnt_[it.first] > 1024 * 1024 * 1024) {
-      auto& cuda_buffers = it.second;
-      std::vector<CudaMemoryBuffer> temp;
-      for (int i = 0; i < cuda_buffers.size(); i++) {
-        if (!cuda_buffers[i].busy) {
-          state = cudaSetDevice(it.first);
-          state = cudaFree(cuda_buffers[i].data);
-          CHECK(state == cudaSuccess)
-              << "Error: CUDA error when release memory on device " << it.first;
+      auto& hip_buffers = it.second;
+      std::vector<HipMemoryBuffer> temp;  // 替换：CudaMemoryBuffer -> HipMemoryBuffer
+      for (int i = 0; i < hip_buffers.size(); i++) {
+        if (!hip_buffers[i].busy) {
+          state = hipSetDevice(it.first);  // 替换：cudaSetDevice -> hipSetDevice
+          state = hipFree(hip_buffers[i].data);  // 替换：cudaFree -> hipFree
+          CHECK(state == hipSuccess)  // 替换：cudaSuccess -> hipSuccess
+              << "Error: HIP error when releasing memory on device " << it.first;
         } else {
-          temp.push_back(cuda_buffers[i]);
+          temp.push_back(hip_buffers[i]);
         }
       }
-      cuda_buffers.clear();
+      hip_buffers.clear();
       it.second = temp;
       no_busy_cnt_[it.first] = 0;
     }
   }
 
-  for (auto& it : cuda_buffers_map_) {
-    auto& cuda_buffers = it.second;
-    for (int i = 0; i < cuda_buffers.size(); i++) {
-      if (cuda_buffers[i].data == ptr) {
-        no_busy_cnt_[it.first] += cuda_buffers[i].byte_size;
-        cuda_buffers[i].busy = false;
+  for (auto& it : hip_buffers_map_) {
+    auto& hip_buffers = it.second;
+    for (int i = 0; i < hip_buffers.size(); i++) {
+      if (hip_buffers[i].data == ptr) {
+        no_busy_cnt_[it.first] += hip_buffers[i].byte_size;
+        hip_buffers[i].busy = false;
         return;
       }
     }
@@ -107,9 +112,13 @@ void CUDADeviceAllocator::release(void* ptr) const {
       }
     }
   }
-  state = cudaFree(ptr);
-  CHECK(state == cudaSuccess) << "Error: CUDA error when release memory on device";
+  
+  state = hipFree(ptr);  // 替换：cudaFree -> hipFree
+  CHECK(state == hipSuccess)  // 替换：cudaSuccess -> hipSuccess
+      << "Error: HIP error when releasing memory on device";
 }
-std::shared_ptr<CUDADeviceAllocator> CUDADeviceAllocatorFactory::instance = nullptr;
+
+// 修改类名：CUDADeviceAllocatorFactory -> HIPDeviceAllocatorFactory
+std::shared_ptr<HIPDeviceAllocator> HIPDeviceAllocatorFactory::instance = nullptr;
 
 }  // namespace base

@@ -124,27 +124,27 @@ void Layer::reset_input_size(size_t size) { inputs_.resize(size); }
 
 void Layer::reset_output_size(size_t size) { outputs_.resize(size); }
 
-void Layer::to_cuda() {
+void Layer::to_hip() {
   for (auto& input : inputs_) {
     if (!input.is_empty()) {
-      input.to_cuda(cuda_config_ ? cuda_config_->stream : nullptr);
+      input.to_hip(hip_config_ ? hip_config_->stream : nullptr);
     }
   }
   for (auto& output : outputs_) {
     if (!output.is_empty()) {
-      output.to_cuda(cuda_config_ ? cuda_config_->stream : nullptr);
+      output.to_hip(hip_config_ ? hip_config_->stream : nullptr);
     }
   }
 }
 
-void Layer::set_cuda_config(std::shared_ptr<kernel::CudaConfig> config) {
+void Layer::set_hip_config(std::shared_ptr<kernel::HipConfig> config) {
   if (!config) {
     return;
   }
-  this->cuda_config_ = config;
+  this->hip_config_ = config;
 }
 
-std::shared_ptr<kernel::CudaConfig> Layer::cuda_config() const { return cuda_config_; }
+std::shared_ptr<kernel::HipConfig> Layer::hip_config() const { return hip_config_; }
 
 size_t Layer::input_size() const { return inputs_.size(); }
 
@@ -171,13 +171,13 @@ const tensor::Tensor& LayerParam::get_weight(int32_t idx) const {
   return weights_.at(idx);
 }
 
-void LayerParam::to_cuda() {
-  Layer::to_cuda();
+void LayerParam::to_hip() {
+  Layer::to_hip();
   for (auto& weight : weights_) {
-    weight.to_cuda(cuda_config_ ? cuda_config_->stream : nullptr);
+    weight.to_hip(hip_config_ ? hip_config_->stream : nullptr);
   }
   if (!scales_.is_empty()) {
-    scales_.to_cuda(cuda_config_ ? cuda_config_->stream : nullptr);
+    scales_.to_hip(hip_config_ ? hip_config_->stream : nullptr);
   }
 }
 

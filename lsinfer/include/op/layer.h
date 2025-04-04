@@ -142,16 +142,16 @@ class Layer : public BaseLayer {
 
   void reset_output_size(size_t size);
 
-  virtual void to_cuda();
+  virtual void to_hip();
 
-  void set_cuda_config(std::shared_ptr<kernel::CudaConfig> config);
+  void set_hip_config(std::shared_ptr<kernel::HipConfig> config);
 
-  std::shared_ptr<kernel::CudaConfig> cuda_config() const;
+  std::shared_ptr<kernel::HipConfig> hip_config() const;
 
  protected:
   std::vector<tensor::Tensor> inputs_;
   std::vector<tensor::Tensor> outputs_;
-  std::shared_ptr<kernel::CudaConfig> cuda_config_;
+  std::shared_ptr<kernel::HipConfig> hip_config_;
 };
 
 class LayerParam : public Layer {
@@ -167,7 +167,7 @@ class LayerParam : public Layer {
 
   const tensor::Tensor& get_weight(int32_t idx) const;
 
-  void to_cuda() override;
+  void to_hip() override;
 
   base::Status set_weight(int32_t idx, const tensor::Tensor& weight) override;
 

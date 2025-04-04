@@ -67,17 +67,17 @@ void Buffer::copy_from(const Buffer& buffer) const {
   if (buffer_device == DeviceType::kDeviceCPU &&
       current_device == DeviceType::kDeviceCPU) {
     return allocator_->memcpy(buffer.ptr(), this->ptr_, byte_size);
-  } else if (buffer_device == DeviceType::kDeviceCUDA &&
+  } else if (buffer_device == DeviceType::kDeviceHIP &&
              current_device == DeviceType::kDeviceCPU) {
     return allocator_->memcpy(buffer.ptr(), this->ptr_, byte_size,
-                              MemcpyKind::kMemcpyCUDA2CPU);
+                              MemcpyKind::kMemcpyHIP2CPU);
   } else if (buffer_device == DeviceType::kDeviceCPU &&
-             current_device == DeviceType::kDeviceCUDA) {
+             current_device == DeviceType::kDeviceHIP) {
     return allocator_->memcpy(buffer.ptr(), this->ptr_, byte_size,
-                              MemcpyKind::kMemcpyCPU2CUDA);
+                              MemcpyKind::kMemcpyCPU2HIP);
   } else {
     return allocator_->memcpy(buffer.ptr(), this->ptr_, byte_size,
-                              MemcpyKind::kMemcpyCUDA2CUDA);
+                              MemcpyKind::kMemcpyHIP2HIP);
   }
 }
 
@@ -97,17 +97,17 @@ void Buffer::copy_from(const Buffer* buffer) const {
   if (buffer_device == DeviceType::kDeviceCPU &&
       current_device == DeviceType::kDeviceCPU) {
     return allocator_->memcpy(buffer->ptr_, this->ptr_, byte_size);
-  } else if (buffer_device == DeviceType::kDeviceCUDA &&
+  } else if (buffer_device == DeviceType::kDeviceHIP &&
              current_device == DeviceType::kDeviceCPU) {
     return allocator_->memcpy(buffer->ptr_, this->ptr_, byte_size,
-                              MemcpyKind::kMemcpyCUDA2CPU);
+                              MemcpyKind::kMemcpyHIP2CPU);
   } else if (buffer_device == DeviceType::kDeviceCPU &&
-             current_device == DeviceType::kDeviceCUDA) {
+             current_device == DeviceType::kDeviceHIP) {
     return allocator_->memcpy(buffer->ptr_, this->ptr_, byte_size,
-                              MemcpyKind::kMemcpyCPU2CUDA);
+                              MemcpyKind::kMemcpyCPU2HIP);
   } else {
     return allocator_->memcpy(buffer->ptr_, this->ptr_, byte_size,
-                              MemcpyKind::kMemcpyCUDA2CUDA);
+                              MemcpyKind::kMemcpyHIP2HIP);
   }
 }
 

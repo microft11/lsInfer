@@ -27,13 +27,13 @@ base::Status MultiHeadAttention::forward() {
   const tensor::Tensor& key_cache_tensor = this->get_input(2);
   const tensor::Tensor& value_cache_tensor = this->get_input(3);
 
-  if (device_type_ == base::DeviceType::kDeviceCUDA) {
-    CHECK(cuda_config_ != nullptr);
+  if (device_type_ == base::DeviceType::kDeviceHIP) {
+    CHECK(hip_config_ != nullptr);
   }
   kernel::get_mha_kernel(device_type_)(pos_, head_num_, layer_index_, seq_len_, kv_dim_, kv_mul_,
                                        head_size_, mha_out, query_tensor, score_tensor,
                                        key_cache_tensor, value_cache_tensor, device_type_,
-                                       cuda_config_ ? cuda_config_.get() : nullptr);
+                                       hip_config_ ? hip_config_.get() : nullptr);
   return base::error::Success();
 }
 

@@ -8,6 +8,14 @@
     (void)(expr);    \
   } while (0)
 
+#define HIP_CHECK(cmd) \
+  do { \
+    hipError_t error = cmd; \
+    if (error != hipSuccess) { \
+      LOG(FATAL) << "HIP error: " << hipGetErrorString(error) << " at " << __FILE__ << ":" << __LINE__; \
+  } \
+} while(0)
+
 namespace model {
 enum class ModelBufferType {
   kInputTokens = 0,
@@ -36,7 +44,8 @@ namespace base {
 enum class DeviceType : uint8_t {
   kDeviceUnknown = 0,
   kDeviceCPU = 1,
-  kDeviceCUDA = 2,
+  kDeviceHIP = 2,
+  // kDeviceCUDA = 3,
 };
 
 enum class DataType : uint8_t {

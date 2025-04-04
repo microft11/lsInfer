@@ -59,21 +59,21 @@ base::Status MatmulLayer::forward() {
   if (!status) {
     return status;
   }
-  if (device_type_ == base::DeviceType::kDeviceCUDA) {
-    CHECK(cuda_config_ != nullptr);
+  if (device_type_ == base::DeviceType::kDeviceHIP) {
+    CHECK(hip_config_ != nullptr);
   }
   if (is_quant_layer_) {
     kernel::get_matmul_kernel_quant8(device_type_)(get_input(0), get_weight(0), get_output(0),
                                                    group_size_, scales_,
-                                                   cuda_config_ ? cuda_config_.get() : nullptr);
+                                                   hip_config_ ? hip_config_.get() : nullptr);
   } else {
     kernel::get_matmul_kernel(device_type_)(get_input(0), get_weight(0), get_output(0), 1.f,
-                                            cuda_config_ ? cuda_config_.get() : nullptr);
+                                            hip_config_ ? hip_config_.get() : nullptr);
   }
 
   if (has_bias_) {
     kernel::get_add_kernel(device_type_)(get_output(0), get_bias(0), get_output(0),
-                                            cuda_config_ ? cuda_config_->stream : nullptr);
+                                            hip_config_ ? hip_config_->stream : nullptr);
   }
 
   return base::error::Success();
@@ -129,11 +129,11 @@ const tensor::Tensor& MatmulLayer::get_bias(int32_t idx) const {
   return bias_.at(idx);
 }
 
-void MatmulLayer::to_cuda() {
-  LayerParam::to_cuda();
+void MatmulLayer::to_hip() {
+  LayerParam::to_hip();
   if (has_bias_) {
     for (auto& bias : bias_) {
-      bias.to_cuda(cuda_config_ ? cuda_config_->stream : nullptr);
+      bias.to_hip(hip_config_ ? hip_config_->stream : nullptr);
     }
   }
 }

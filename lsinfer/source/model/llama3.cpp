@@ -1,5 +1,5 @@
 #include "model/llama3.h"
-#include <cuda_runtime_api.h>
+#include <hip/hip_runtime.h>
 #include <glog/logging.h>
 #include <op/matmul.h>
 #include <op/mha.h>
@@ -7,94 +7,95 @@
 #include <sentencepiece_processor.h>
 #include <utility>
 #include "../op/kernels/cpu/rope_kernel.h"
-#include "../op/kernels/cuda/rope_kernel.cuh"
+#include "../op/kernels/rocm/rope_kernel.cuh"
+#include "base/alloc.h"
 #include "base/tick.h"
 namespace model {
 
-void LLama2Layers::to_cuda(std::shared_ptr<kernel::CudaConfig> config) {
+void LLama2Layers::to_hip(std::shared_ptr<kernel::HipConfig> config) {
   if (add_layer_) {
-    add_layer_->set_cuda_config(config);
-    add_layer_->to_cuda();
+    add_layer_->set_hip_config(config);
+    add_layer_->to_hip();
   }
 
   if (rope_layer_) {
-    rope_layer_->set_cuda_config(config);
-    rope_layer_->to_cuda();
+    rope_layer_->set_hip_config(config);
+    rope_layer_->to_hip();
   }
 
   if (swiglu_layer_) {
-    swiglu_layer_->set_cuda_config(config);
-    swiglu_layer_->to_cuda();
+    swiglu_layer_->set_hip_config(config);
+    swiglu_layer_->to_hip();
   }
 
   if (cls_layer_) {
-    cls_layer_->set_cuda_config(config);
-    cls_layer_->to_cuda();
+    cls_layer_->set_hip_config(config);
+    cls_layer_->to_hip();
   }
 
   if (embedding_layer_) {
-    embedding_layer_->set_cuda_config(config);
-    embedding_layer_->to_cuda();
+    embedding_layer_->set_hip_config(config);
+    embedding_layer_->to_hip();
   }
 
   if (mha_layer_) {
-    mha_layer_->set_cuda_config(config);
-    mha_layer_->to_cuda();
+    mha_layer_->set_hip_config(config);
+    mha_layer_->to_hip();
   }
 
   for (auto& weight_layer : wq_layers_) {
     if (weight_layer) {
-      weight_layer->set_cuda_config(config);
-      weight_layer->to_cuda();
+      weight_layer->set_hip_config(config);
+      weight_layer->to_hip();
     }
   }
 
   for (auto& weight_layer : wk_layers_) {
     if (weight_layer) {
-      weight_layer->set_cuda_config(config);
-      weight_layer->to_cuda();
+      weight_layer->set_hip_config(config);
+      weight_layer->to_hip();
     }
   }
 
   for (auto& weight_layer : wv_layers_) {
     if (weight_layer) {
-      weight_layer->set_cuda_config(config);
-      weight_layer->to_cuda();
+      weight_layer->set_hip_config(config);
+      weight_layer->to_hip();
     }
   }
 
   for (auto& weight_layer : wo_layers_) {
     if (weight_layer) {
-      weight_layer->set_cuda_config(config);
-      weight_layer->to_cuda();
+      weight_layer->set_hip_config(config);
+      weight_layer->to_hip();
     }
   }
 
   for (auto& weight_layer : w1_layers_) {
     if (weight_layer) {
-      weight_layer->set_cuda_config(config);
-      weight_layer->to_cuda();
+      weight_layer->set_hip_config(config);
+      weight_layer->to_hip();
     }
   }
 
   for (auto& weight_layer : w2_layers_) {
     if (weight_layer) {
-      weight_layer->set_cuda_config(config);
-      weight_layer->to_cuda();
+      weight_layer->set_hip_config(config);
+      weight_layer->to_hip();
     }
   }
 
   for (auto& weight_layer : w3_layers_) {
     if (weight_layer) {
-      weight_layer->set_cuda_config(config);
-      weight_layer->to_cuda();
+      weight_layer->set_hip_config(config);
+      weight_layer->to_hip();
     }
   }
 
   for (auto& rms_norm_layer : rmsnorm_layers_) {
     if (rms_norm_layer) {
-      rms_norm_layer->to_cuda();
-      rms_norm_layer->set_cuda_config(config);
+      rms_norm_layer->to_hip();
+      rms_norm_layer->set_hip_config(config);
     }
   }
 }
@@ -112,15 +113,13 @@ base::Status LLama2Model::init(base::DeviceType device_type) {
   if (device_type == base::DeviceType::kDeviceCPU && is_quant_model_) {
     return error::InternalError("The cpu device do not support int8 quant model.");
   }
-
-  device_type_ = device_type;
-  if (device_type == DeviceType::kDeviceCUDA) {
-    cudaSetDevice(0);
-    cuda_config_ = std::make_shared<kernel::CudaConfig>();
-    cudaStreamCreate(&cuda_config_->stream);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-      return error::InternalError("The cuda handle create failed.");
+  if (device_type == DeviceType::kDeviceHIP) {
+    hipSetDevice(0);
+    hip_config_ = std::make_shared<kernel::HipConfig>();
+    hipStreamCreate(&hip_config_->stream); 
+    hipError_t err = hipGetLastError();
+    if (err != hipSuccess) {
+      return error::InternalError("HIP handle creation failed");
     }
   }
 
@@ -134,10 +133,14 @@ base::Status LLama2Model::init(base::DeviceType device_type) {
                                    get_buffer(ModelBufferType::kSinCache).ptr<float>(),
                                    get_buffer(ModelBufferType::kCosCache).ptr<float>());
   } else {
-    CHECK_NE(cuda_config_, nullptr);
-    kernel::sin_cos_cache_calc_cu(config_->head_size_, config_->seq_len_,
-                                  get_buffer(ModelBufferType::kSinCache),
-                                  get_buffer(ModelBufferType::kCosCache), cuda_config_->stream);
+    CHECK_NE(hip_config_, nullptr);
+    kernel::sin_cos_cache_calc_hip(  // 替换：sin_cos_cache_calc_cu
+      config_->head_size_, 
+      config_->seq_len_,
+      get_buffer(ModelBufferType::kSinCache),
+      get_buffer(ModelBufferType::kCosCache), 
+      hip_config_->stream
+    );
   }
 
   sampler_ = std::make_unique<sampler::ArgmaxSampler>(device_type_);
@@ -427,18 +430,18 @@ void LLama2Model::init_mem() {
   if (device_type_ == base::DeviceType::kDeviceCPU) {
     alloc = base::CPUDeviceAllocatorFactory::get_instance();
   } else {
-    alloc = base::CUDADeviceAllocatorFactory::get_instance();
+    alloc = base::HIPDeviceAllocatorFactory::get_instance();
   }
 
-  if (device_type_ == base::DeviceType::kDeviceCUDA) {
-    CHECK_NE(cuda_config_, nullptr);
-    llama_layers_->to_cuda(cuda_config_);
+  if (device_type_ == base::DeviceType::kDeviceHIP) {
+    CHECK_NE(hip_config_, nullptr);
+    llama_layers_->to_hip(hip_config_);
   }
 
   std::shared_ptr<base::DeviceAllocator> alloc_cpu =
       base::CPUDeviceAllocatorFactory::get_instance();
   std::shared_ptr<base::DeviceAllocator> alloc_cu =
-      base::CUDADeviceAllocatorFactory::get_instance();
+      base::HIPDeviceAllocatorFactory::get_instance();
 
   tensor::Tensor input_tokens(base::DataType::kDataTypeInt32, 1, true, alloc_cpu);
   tensor::Tensor input_embeddings(base::DataType::kDataTypeFp32, 1, config_->dim_, true, alloc);
@@ -490,7 +493,7 @@ void LLama2Model::init_mem() {
 
   // final forward output
   tensor::Tensor forward_output(base::DataType::kDataTypeFp32, config_->vocab_size_, true, alloc);
-  if (device_type_ == base::DeviceType::kDeviceCUDA) {
+  if (device_type_ == base::DeviceType::kDeviceHIP) {
     tensor::Tensor forward_output_cpu(base::DataType::kDataTypeFp32, config_->vocab_size_, true,
                                       alloc_cpu);
     CHECK(insert_buffer(ModelBufferType::kForwardOutputCPU, forward_output_cpu));
@@ -739,7 +742,7 @@ int32_t LLama2Model::post_processing(const tensor::Tensor& pos, bool is_prompt) 
     next = -1;
   } else {
     next = static_cast<int32_t>(sampler_->sample(forward_logits, forward_output.size(),
-                                                 cuda_config_ ? cuda_config_->stream : nullptr));
+                                                 hip_config_ ? hip_config_->stream : nullptr));
   }
   return next;
 }
