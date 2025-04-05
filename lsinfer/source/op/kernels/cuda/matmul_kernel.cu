@@ -1,170 +1,199 @@
 #include <tensor/tensor.h>
 #include <cub/block/block_reduce.cuh>
+#include <cuda_runtime.h>
+#include <cassert>
 #include "matmul_kernel.cuh"
+
+#define CUDA_CHECK(cmd) do {                          \
+  cudaError_t e = cmd;                                \
+  if( e != cudaSuccess ) {                            \
+    printf("Failed: Cuda error %s:%d '%s'\n",         \
+      __FILE__,__LINE__,cudaGetErrorString(e));       \
+    exit(EXIT_FAILURE);                               \
+  }                                                   \
+} while(0)
+
 namespace kernel {
-template <int THREAD_PER_BLOCK, int ROW_PER_BLOCK, int UNROLL_FACTOR = 4>
+
+template <int THREAD_PER_BLOCK=128, int ROW_PER_BLOCK=2>
 __global__ void matmul_kernel_cu_fp32(const float* __restrict__ input, 
-                                              const float* __restrict__ weight, 
-                                              float* __restrict__ output, 
-                                              int M, int K) {
-  // 共享内存缓存输入数据
-  __shared__ float input_smem[THREAD_PER_BLOCK];
+                                    const float* __restrict__ weight, 
+                                    float* __restrict__ output, 
+                                    int M, int K) {
   __shared__ float sdata[THREAD_PER_BLOCK];
-  
   const unsigned int tid = threadIdx.x;
   const int start_row = blockIdx.x * ROW_PER_BLOCK;
-  const int end_row = min(start_row + ROW_PER_BLOCK, K);
   
+  if (start_row >= K) return;
+
   constexpr int pack_size = 4;
   const int pack_num = M / pack_size;
   const int pack_off = pack_size * pack_num;
 
-  // 预加载输入数据到共享内存
-  for (int i = tid; i < M; i += THREAD_PER_BLOCK) {
-    input_smem[i] = input[i];
+  // Pre-load input into registers
+  float4 input_reg;
+  if (tid < pack_num) {
+    input_reg = ((float4*)input)[tid];
   }
-  __syncthreads();
-
-  for (int p = start_row; p < end_row; ++p) {
+  for (int p = start_row; p < min(start_row + ROW_PER_BLOCK, K); ++p) {
     float sum = 0.0f;
-    const int row_offset = p * M;
-    
-    // 向量化加载和计算
-    const float4* weight_vec = reinterpret_cast<const float4*>(weight + row_offset);
+    const size_t row_offset = static_cast<size_t>(p) * M;
+    const float4* weight_float4_ptr = (float4*)(weight + row_offset);
 
-    #pragma unroll UNROLL_FACTOR
-    for (int i = tid; i < pack_num; i += THREAD_PER_BLOCK) {
-      float4 wt = weight_vec[i];
-      float in0 = input_smem[i * pack_size];
-      float in1 = input_smem[i * pack_size + 1];
-      float in2 = input_smem[i * pack_size + 2];
-      float in3 = input_smem[i * pack_size + 3];
-      
-      sum += in0 * wt.x + in1 * wt.y + in2 * wt.z + in3 * wt.w;
+    // Process packed data
+    if (tid < pack_num) {
+      float4 weight_float4 = weight_float4_ptr[tid];
+      sum += input_reg.x * weight_float4.x + 
+            input_reg.y * weight_float4.y + 
+            input_reg.z * weight_float4.z + 
+            input_reg.w * weight_float4.w;
     }
 
+    // Process remaining elements
     for (int i = pack_off + tid; i < M; i += THREAD_PER_BLOCK) {
-      sum += input_smem[i] * weight[row_offset + i];
+      sum += input[i] * weight[row_offset + i];
     }
 
     sdata[tid] = sum;
-    for (int stride = THREAD_PER_BLOCK / 2; stride > 0; stride >>= 1) {
-      __syncthreads();
-      if (tid < stride) {
-        sdata[tid] += sdata[tid + stride];
-      }
-    }
+    __syncthreads();
 
+    // Reduction using CUB (more reliable than manual reduction)
+    typedef cub::BlockReduce<float, THREAD_PER_BLOCK> BlockReduce;
+    __shared__ typename BlockReduce::TempStorage temp_storage;
+    float block_sum = BlockReduce(temp_storage).Sum(sum);
+    
     if (tid == 0) {
-      output[p] = sdata[0];
+      output[p] = block_sum;
     }
+    __syncthreads();
   }
 }
 
-template <int THREAD_PER_BLOCK, int ROW_PER_BLOCK, int UNROLL_FACTOR = 4>
+template <int THREAD_PER_BLOCK=128, int ROW_PER_BLOCK=2>
 __global__ void matmul_kernel_cu_fp32int8(const float* __restrict__ input, 
-                                                   const int8_t* __restrict__ weight,
-                                                   const float* __restrict__ scales, 
-                                                   const int32_t group_size,
-                                                   float* __restrict__ output, 
-                                                   int M, int K) {
-  // 共享内存缓存输入数据和缩放因子
-  __shared__ float input_smem[THREAD_PER_BLOCK];
-  __shared__ float scale_smem[THREAD_PER_BLOCK];
-  __shared__ float sdata[THREAD_PER_BLOCK];
+                                        const int8_t* __restrict__ weight,
+                                        const float* __restrict__ scales, 
+                                        const int32_t group_size,
+                                        float* __restrict__ output, 
+                                        int M, int K) {
+  extern __shared__ float shared_mem[];
+  float* input_smem = shared_mem;
+  float* sdata = shared_mem + THREAD_PER_BLOCK;
   
   const unsigned int tid = threadIdx.x;
   const int start_row = blockIdx.x * ROW_PER_BLOCK;
-  const int end_row = min(start_row + ROW_PER_BLOCK, K);
+  
+  if (start_row >= K) return;
 
-  // 预加载输入数据到共享内存
+  // Load input into shared memory
   for (int i = tid; i < M; i += THREAD_PER_BLOCK) {
-    input_smem[i] = input[i];
+    input_smem[tid] = input[i];
   }
   __syncthreads();
 
-  for (int p = start_row; p < end_row; ++p) {
+  for (int p = start_row; p < min(start_row + ROW_PER_BLOCK, K); ++p) {
     float sum = 0.0f;
-    const int row_offset = p * M;
-    
-    // 预加载缩放因子
-    const int group_idx = (p * M) / group_size;
-    if (tid == 0) {
-      scale_smem[0] = scales[group_idx];
-    }
-    __syncthreads();
-    const float scale = scale_smem[0];
-
-    #pragma unroll UNROLL_FACTOR
+    const size_t row_offset = static_cast<size_t>(p) * M;
     for (int i = tid; i < M; i += THREAD_PER_BLOCK) {
-      const int weight_idx = row_offset + i;
-      sum += input_smem[i] * scale * static_cast<float>(weight[weight_idx]);
+      const size_t weight_idx = row_offset + i;
+      const int group_idx = weight_idx / group_size;
+      sum += input_smem[i] * scales[group_idx] * static_cast<float>(weight[weight_idx]);
     }
 
     sdata[tid] = sum;
+    __syncthreads();
+    typedef cub::BlockReduce<float, THREAD_PER_BLOCK> BlockReduce;
+    __shared__ typename BlockReduce::TempStorage temp_storage;
+    float block_sum = BlockReduce(temp_storage).Sum(sum);
     
-    // 优化的归约操作，减少同步点
-    for (int stride = THREAD_PER_BLOCK / 2; stride > 0; stride >>= 1) {
-      __syncthreads();
-      if (tid < stride) {
-        sdata[tid] += sdata[tid + stride];
-      }
-    }
-
     if (tid == 0) {
-      output[p] = sdata[0];
+      output[p] = block_sum;
     }
+    __syncthreads();
   }
 }
 
 void matmul_kernel_cu(const tensor::Tensor& input, const tensor::Tensor& weight,
-  const tensor::Tensor& output, const float scale, 
-  const CudaConfig* config) {
-  CHECK(input.is_empty() == false && input.dims_size() <= 2);
+                    const tensor::Tensor& output, const float scale, 
+                    const CudaConfig* config) {
+  // Input validation
+  CHECK(!input.is_empty() && input.dims_size() <= 2);
   CHECK(input.device_type() == base::DeviceType::kDeviceCUDA);
-  CHECK(weight.is_empty() == false && weight.dims_size() == 2);
+  CHECK(!weight.is_empty() && weight.dims_size() == 2);
   CHECK(weight.device_type() == base::DeviceType::kDeviceCUDA);
 
   const int32_t K = weight.get_dim(0);
   const int32_t M = weight.get_dim(1);
   CHECK_EQ(M, input.get_dim(0));
 
-  constexpr int THREADS_PER_BLOCK = 256;
-  constexpr int ROW_PER_BLOCK = 1;
+  // Ensure memory alignment
+  assert(reinterpret_cast<uintptr_t>(input.ptr<float>()) % 16 == 0);
+  assert(reinterpret_cast<uintptr_t>(weight.ptr<float>()) % 16 == 0);
 
+  // Kernel configuration
+  constexpr int threads = 128;  // Optimal for RTX 3060
+  constexpr int rows_per_block = 2;
+  const dim3 grid((K + rows_per_block - 1) / rows_per_block);
+  const dim3 block(threads);
+
+  // Launch kernel
   if (config && config->stream) {
-    matmul_kernel_cu_fp32<THREADS_PER_BLOCK, ROW_PER_BLOCK><<<K, THREADS_PER_BLOCK, 0, config->stream>>>(
-    input.ptr<float>(), weight.ptr<float>(), const_cast<float*>(output.ptr<float>()), M, K);
+    matmul_kernel_cu_fp32<threads, rows_per_block>
+        <<<grid, block, 0, config->stream>>>(input.ptr<float>(), 
+                                            weight.ptr<float>(), 
+                                            const_cast<float*>(output.ptr<float>()), 
+                                            M, K);
   } else {
-    matmul_kernel_cu_fp32<THREADS_PER_BLOCK, ROW_PER_BLOCK><<<K, THREADS_PER_BLOCK>>>(
-    input.ptr<float>(), weight.ptr<float>(), const_cast<float*>(output.ptr<float>()), M, K);
+    matmul_kernel_cu_fp32<threads, rows_per_block>
+        <<<grid, block>>>(input.ptr<float>(), 
+                        weight.ptr<float>(), 
+                        const_cast<float*>(output.ptr<float>()), 
+                        M, K);
   }
+  CUDA_CHECK(cudaGetLastError());
 }
 
 void matmul_kernel_cu_qint8(const tensor::Tensor& input, const tensor::Tensor& weight,
-        const tensor::Tensor& output, int32_t group_size,
-        const tensor::Tensor& scale, const CudaConfig* config) {
+                          const tensor::Tensor& output, int32_t group_size,
+                          const tensor::Tensor& scale, const CudaConfig* config) {
   CHECK(config != nullptr);
-  CHECK(input.is_empty() == false && input.dims_size() <= 2);
+  CHECK(!input.is_empty() && input.dims_size() <= 2);
   CHECK(input.device_type() == base::DeviceType::kDeviceCUDA);
-  CHECK(weight.is_empty() == false && weight.dims_size() == 2);
+  CHECK(!weight.is_empty() && weight.dims_size() == 2);
   CHECK(weight.device_type() == base::DeviceType::kDeviceCUDA);
 
   const int32_t K = weight.get_dim(0);
   const int32_t M = weight.get_dim(1);
   CHECK_EQ(M, input.get_dim(0));
 
-  constexpr int THREADS_PER_BLOCK = 256;
-  constexpr int ROW_PER_BLOCK = 1;
+  // Kernel configuration
+  constexpr int threads = 128;
+  constexpr int rows_per_block = 2;
+  const dim3 grid((K + rows_per_block - 1) / rows_per_block);
+  const dim3 block(threads);
+  
+  // Calculate shared memory size
+  const size_t shared_mem_size = (threads + threads) * sizeof(float);
+
+  // Launch kernel
   if (config->stream) {
-    matmul_kernel_cu_fp32int8<THREADS_PER_BLOCK, ROW_PER_BLOCK><<<K, 
-                              THREADS_PER_BLOCK, 0, config->stream>>>(
-    input.ptr<float>(), weight.ptr<int8_t>(), scale.ptr<float>(), group_size,
-    const_cast<float*>(output.ptr<float>()), M, K);
+    matmul_kernel_cu_fp32int8<threads, rows_per_block>
+        <<<grid, block, shared_mem_size, config->stream>>>(input.ptr<float>(), 
+                                                          weight.ptr<int8_t>(), 
+                                                          scale.ptr<float>(), 
+                                                          group_size,
+                                                          const_cast<float*>(output.ptr<float>()), 
+                                                          M, K);
   } else {
-    matmul_kernel_cu_fp32int8<THREADS_PER_BLOCK, ROW_PER_BLOCK><<<K, THREADS_PER_BLOCK>>>(
-    input.ptr<float>(), weight.ptr<int8_t>(), scale.ptr<float>(), group_size,
-    const_cast<float*>(output.ptr<float>()), M, K);
+    matmul_kernel_cu_fp32int8<threads, rows_per_block>
+        <<<grid, block, shared_mem_size>>>(input.ptr<float>(), 
+                                          weight.ptr<int8_t>(), 
+                                          scale.ptr<float>(), 
+                                          group_size,
+                                          const_cast<float*>(output.ptr<float>()), 
+                                          M, K);
   }
+  CUDA_CHECK(cudaGetLastError());
 }
+
 }  // namespace kernel
