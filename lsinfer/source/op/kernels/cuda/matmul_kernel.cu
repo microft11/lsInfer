@@ -15,7 +15,7 @@
 
 namespace kernel {
 
-template <int THREAD_PER_BLOCK=128, int ROW_PER_BLOCK=2>
+template <int THREAD_PER_BLOCK=128, int ROW_PER_BLOCK=1>
 __global__ void matmul_kernel_cu_fp32(const float* __restrict__ input, 
                                     const float* __restrict__ weight, 
                                     float* __restrict__ output, 
@@ -30,23 +30,20 @@ __global__ void matmul_kernel_cu_fp32(const float* __restrict__ input,
   const int pack_num = M / pack_size;
   const int pack_off = pack_size * pack_num;
 
-  // Pre-load input into registers
-  float4 input_reg;
-  if (tid < pack_num) {
-    input_reg = ((float4*)input)[tid];
-  }
   for (int p = start_row; p < min(start_row + ROW_PER_BLOCK, K); ++p) {
     float sum = 0.0f;
     const size_t row_offset = static_cast<size_t>(p) * M;
     const float4* weight_float4_ptr = (float4*)(weight + row_offset);
+    const float4* input_float4_ptr = (float4*)input;
 
     // Process packed data
-    if (tid < pack_num) {
-      float4 weight_float4 = weight_float4_ptr[tid];
-      sum += input_reg.x * weight_float4.x + 
-            input_reg.y * weight_float4.y + 
-            input_reg.z * weight_float4.z + 
-            input_reg.w * weight_float4.w;
+    for (int i = tid; i < pack_num; i += THREAD_PER_BLOCK) {
+      float4 input_float4 = input_float4_ptr[i];
+      float4 weight_float4 = weight_float4_ptr[i];
+      sum += input_float4.x * weight_float4.x + 
+             input_float4.y * weight_float4.y + 
+             input_float4.z * weight_float4.z + 
+             input_float4.w * weight_float4.w;
     }
 
     // Process remaining elements
@@ -57,10 +54,10 @@ __global__ void matmul_kernel_cu_fp32(const float* __restrict__ input,
     sdata[tid] = sum;
     __syncthreads();
 
-    // Reduction using CUB (more reliable than manual reduction)
+    // Reduction using CUB
     typedef cub::BlockReduce<float, THREAD_PER_BLOCK> BlockReduce;
     __shared__ typename BlockReduce::TempStorage temp_storage;
-    float block_sum = BlockReduce(temp_storage).Sum(sum);
+    float block_sum = BlockReduce(temp_storage).Sum(sdata[tid]);
     
     if (tid == 0) {
       output[p] = block_sum;
@@ -69,7 +66,7 @@ __global__ void matmul_kernel_cu_fp32(const float* __restrict__ input,
   }
 }
 
-template <int THREAD_PER_BLOCK=128, int ROW_PER_BLOCK=2>
+template <int THREAD_PER_BLOCK=128, int ROW_PER_BLOCK=1>
 __global__ void matmul_kernel_cu_fp32int8(const float* __restrict__ input, 
                                         const int8_t* __restrict__ weight,
                                         const float* __restrict__ scales, 
@@ -78,30 +75,37 @@ __global__ void matmul_kernel_cu_fp32int8(const float* __restrict__ input,
                                         int M, int K) {
   extern __shared__ float shared_mem[];
   float* input_smem = shared_mem;
-  float* sdata = shared_mem + THREAD_PER_BLOCK;
+  float* sdata = shared_mem + M;  // Separate space for input and reduction
   
   const unsigned int tid = threadIdx.x;
   const int start_row = blockIdx.x * ROW_PER_BLOCK;
   
   if (start_row >= K) return;
 
-  // Load input into shared memory
+  // Load input into shared memory (coalesced access)
   for (int i = tid; i < M; i += THREAD_PER_BLOCK) {
-    input_smem[tid] = input[i];
+    input_smem[i] = input[i];
   }
   __syncthreads();
 
   for (int p = start_row; p < min(start_row + ROW_PER_BLOCK, K); ++p) {
     float sum = 0.0f;
     const size_t row_offset = static_cast<size_t>(p) * M;
-    for (int i = tid; i < M; i += THREAD_PER_BLOCK) {
-      const size_t weight_idx = row_offset + i;
-      const int group_idx = weight_idx / group_size;
-      sum += input_smem[i] * scales[group_idx] * static_cast<float>(weight[weight_idx]);
+
+    // Process in 4-element chunks for better memory efficiency
+    constexpr int chunk_size = 4;
+    for (int i = tid * chunk_size; i < M; i += THREAD_PER_BLOCK * chunk_size) {
+      for (int j = 0; j < chunk_size && (i + j) < M; ++j) {
+        const size_t weight_idx = row_offset + i + j;
+        const int group_idx = weight_idx / group_size;
+        sum += input_smem[i + j] * scales[group_idx] * static_cast<float>(weight[weight_idx]);
+      }
     }
 
     sdata[tid] = sum;
     __syncthreads();
+
+    // Reduction using CUB
     typedef cub::BlockReduce<float, THREAD_PER_BLOCK> BlockReduce;
     __shared__ typename BlockReduce::TempStorage temp_storage;
     float block_sum = BlockReduce(temp_storage).Sum(sum);
