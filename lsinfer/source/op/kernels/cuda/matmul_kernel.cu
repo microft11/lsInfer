@@ -3,16 +3,6 @@
 #include <cuda_runtime.h>
 #include <cassert>
 #include "matmul_kernel.cuh"
-
-#define CUDA_CHECK(cmd) do {                          \
-  cudaError_t e = cmd;                                \
-  if( e != cudaSuccess ) {                            \
-    printf("Failed: Cuda error %s:%d '%s'\n",         \
-      __FILE__,__LINE__,cudaGetErrorString(e));       \
-    exit(EXIT_FAILURE);                               \
-  }                                                   \
-} while(0)
-
 namespace kernel {
 
 template <int THREAD_PER_BLOCK=128, int ROW_PER_BLOCK=1>
@@ -154,7 +144,6 @@ void matmul_kernel_cu(const tensor::Tensor& input, const tensor::Tensor& weight,
                         const_cast<float*>(output.ptr<float>()), 
                         M, K);
   }
-  CUDA_CHECK(cudaGetLastError());
 }
 
 void matmul_kernel_cu_qint8(const tensor::Tensor& input, const tensor::Tensor& weight,
@@ -197,7 +186,6 @@ void matmul_kernel_cu_qint8(const tensor::Tensor& input, const tensor::Tensor& w
                                           const_cast<float*>(output.ptr<float>()), 
                                           M, K);
   }
-  CUDA_CHECK(cudaGetLastError());
 }
 
 }  // namespace kernel
