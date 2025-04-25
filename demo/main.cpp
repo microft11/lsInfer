@@ -1,6 +1,7 @@
 #include <base/base.h>
 #include <base/tick.h>
 #include <glog/logging.h>
+#include <cxxopts.hpp>
 #include "model/llama3.h"
 int32_t generate(const model::LLama2Model& model, const std::string& sentence, int total_steps,
                  bool need_output = false) {
@@ -46,30 +47,70 @@ int32_t generate(const model::LLama2Model& model, const std::string& sentence, i
   return std::min(pos, total_steps);
 }
 
-
 int main(int argc, char* argv[]) {
-  if (argc != 3) {
-    LOG(INFO) << "Usage: ./demo checkpoint path tokenizer path";
-    return -1;
-  }
-  const char* checkpoint_path = argv[1];  // e.g. out/model.bin
-  const char* tokenizer_path = argv[2];
+  cxxopts::Options options("LLaMA Text Generation", "Generate text using LLaMA model");
 
-  model::LLama2Model model(base::TokenizerType::kEncodeSpe, tokenizer_path,
-    checkpoint_path, false);
-  auto init_status = model.init(base::DeviceType::kDeviceCUDA);
+  options.add_options()("m,model", "Path to model checkpoint (e.g., out/model.bin)",
+                        cxxopts::value<std::string>())("t,tokenizer", "Path to tokenizer",
+                                                       cxxopts::value<std::string>())(
+      "d,device", "Device to use: cpu, cuda", cxxopts::value<std::string>()->default_value("cuda"))(
+      "s,steps", "Number of generation steps", cxxopts::value<int>()->default_value("128"))(
+      "o,output", "Print generated text", cxxopts::value<bool>()->default_value("true"))(
+      "q,quant", "Use quantized model", cxxopts::value<bool>()->default_value("false"))(
+      "h,help", "Print usage");
+
+  auto result = options.parse(argc, argv);
+
+  if (result.count("help")) {
+    std::cout << options.help() << std::endl;
+    return 0;
+  }
+
+  if (!result.count("model") || !result.count("tokenizer")) {
+    std::cerr << "Error: Missing required arguments: --model and --tokenizer are required."
+              << std::endl;
+    std::cerr << options.help() << std::endl;
+    return 1;
+  }
+
+  std::string checkpoint_path = result["model"].as<std::string>();
+  std::string tokenizer_path = result["tokenizer"].as<std::string>();
+  std::string device_str = result["device"].as<std::string>();
+  int total_steps = result["steps"].as<int>();
+  bool need_output = result["output"].as<bool>();
+  bool is_quant_model = result["quant"].as<bool>();
+
+  // 设备映射
+  base::DeviceType device_type = base::DeviceType::kDeviceUnknown;
+  if (device_str == "cpu") {
+    device_type = base::DeviceType::kDeviceCPU;
+  } else if (device_str == "cuda") {
+    device_type = base::DeviceType::kDeviceCUDA;
+  } else {
+    std::cerr << "Error: Invalid device type: " << device_str << std::endl;
+    std::cerr << options.help() << std::endl;
+    return 1;
+  }
+
+  model::LLama2Model model(base::TokenizerType::kEncodeSpe, tokenizer_path, checkpoint_path,
+                           is_quant_model);
+
+  base::DeviceType base_device_type = (device_type == base::DeviceType::kDeviceCUDA)
+                                          ? base::DeviceType::kDeviceCUDA
+                                          : base::DeviceType::kDeviceCPU;
+  auto init_status = model.init(base_device_type);
   if (!init_status) {
-    LOG(FATAL) << "The model init failed, the error code is: " << init_status.get_err_msg();
+    std::cerr << "Error: Model initialization failed: " << init_status.get_err_msg() << std::endl;
+    return 1;
   }
-  const std::string& sentence = "a";
 
+  std::string sentence = "hello";
   auto start = std::chrono::steady_clock::now();
-  printf("Generating...\n");
-  fflush(stdout);
-  int steps = generate(model, sentence, 128, true);
+  std::cout << "Generating..." << std::endl;
+  int steps = generate(model, sentence, total_steps, need_output);
   auto end = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration<double>(end - start).count();
-  printf("\nsteps/s:%lf\n", static_cast<double>(steps) / duration);
-  fflush(stdout);
+  std::cout << "\nsteps/s: " << (static_cast<double>(steps) / duration) << std::endl;
+
   return 0;
 }

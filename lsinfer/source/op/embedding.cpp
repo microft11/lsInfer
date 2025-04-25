@@ -1,5 +1,4 @@
 #include "op/embedding.h"
-#include "kernels/cpu/emb_kernel.h"
 #include "kernels/kernels_interface.h"
 #include "op/layer.h"
 namespace op {

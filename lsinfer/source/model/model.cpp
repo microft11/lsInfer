@@ -79,26 +79,14 @@ base::Status Model::read_model_file() {
     raw_model_data_ = std::make_shared<RawModelDataInt8>();
   }
 
-  struct stat st;
-  if (fstat(fd, &st) == -1) {
+  struct stat sb;
+  if (fstat(fd, &sb) == -1) {
     close(fd);
     return error::ModelParseError(
         "Failed to retrieve the file size information from the model "
         "file.");
   }
-  raw_model_data_->file_size = st.st_size;
-  LOG(INFO) << "The tokenizer model path: " << token_path_;
-  std::string tokenizer_type_str = tokenizer_type_ == TokenizerType::kEncodeBpe ? "Bpe" : "Spe";
-  LOG(INFO) << "The tokenizer type: " << tokenizer_type_str;
-
-  LOG(INFO) << "The model path: " << model_path_;
-  LOG(INFO) << "The model file size: " << raw_model_data_->file_size << " byte";
-  std::string quant_info = is_quant_model_ ? "quant" : "not quant";
-  LOG(INFO) << "The model is " << quant_info << " model";
-
-  if (config_) {
-    LOG(INFO) << "\nThe model info: " << *config_;
-  }
+  raw_model_data_->file_size = sb.st_size;
 
   raw_model_data_->fd = fd;
   raw_model_data_->data =
@@ -184,19 +172,18 @@ base::Status Model::gen_model_from_file() {
   // google sentence piece
   auto create_encode_status = create_encode_layer();
   if (!create_encode_status) {
-    LOG(ERROR) << "Create the encode layer failed! " << create_encode_status.get_err_msg();
+    LOG(ERROR) << "Create the encode layer failed!";
     return create_encode_status;
   }
   // mmap
   auto mmap_status = read_model_file();
   if (!mmap_status) {
-    LOG(ERROR) << "Read model file " << model_path_ << " failed! " << mmap_status.get_err_msg();
+    LOG(ERROR) << "Handle model file " << model_path_ << " failed!";
     return mmap_status;
   }
   auto layer_create_status = create_layers();
   if (!layer_create_status) {
-    LOG(ERROR) << "Create layers for the model file " << model_path_ << " failed! "
-               << mmap_status.get_err_msg();
+    LOG(ERROR) << "Create layers for the model file " << model_path_ << " failed!";
     return layer_create_status;
   }
 

@@ -1,3 +1,9 @@
 .vscode/
-.build/
-./build/*
+.cache/
+build/
+build/*
+lib/
+lib/*
+USE_CPM/*
+USE_CPM
+__pycache__

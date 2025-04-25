@@ -1,9 +1,17 @@
 # readme
-本项目在KuiperLLama大模型推理框架的基础上进行复用，主要更新的点有；
-1. 添加了 amd 的 rocm 后端实现
-2. 添加后端的自动选择
-3. 算子的更新优化
-4. 与某国产企业的推理框架对接（但是不商用，且较为机密，估计不会放到这里）
+## 项目简介
+项目支持：
+- 基于KuiperLLama大模型推理框架的推理
+- 基于Qwen2.5/LLama的推理
+- 使用cuda，cpu 后端推理
+
+本项目对于KuiperLLama主要更新的点有；
+1. ~~添加了 amd 的 rocm 后端实现~~，原作者把cuda和cpu的实现混在一起，太难解耦了。
+> rocm后端的实现（WIP）在 https://github.com/microft11/lsInfer/tree/backend_separation 分支中
+2. 添加新的模型推理框架支持
+3. 添加后端的自动选择
+4. 算子的更新优化
+5. ~~与某国产企业的推理框架对接~~（但是不商用，且较为机密，估计不会放到这里）
 
 ## 第三方依赖
 > 借助企业级开发库，更快地搭建出大模型推理框架
@@ -13,6 +21,31 @@
 4. armadillo + openblas https://arma.sourceforge.net/download.html
 5. Cuda Toolkit
 
+### 手动下载
+```shell
+sudo apt-get -y install libgoogle-glog-dev
+sudo apt-get -y install libarmadillo-dev
+sudo apt-get -y install libsentencepiece-dev # ubuntu版本低了这个库没有需要自己编译
+sudo apt-get -y install libgtest-dev
+sudo apt -y install libcxxopts-dev
+
+apt-get -y install libgoogle-glog-dev
+apt-get -y install libarmadillo-dev
+apt-get -y install libsentencepiece-dev
+apt-get -y install libgtest-dev
+apt -y install libcxxopts-dev
+```
+
+## Huggingface镜像站使用
+1. 依赖
+```bash
+pip install huggingface_hub
+
+huggingface-cli login
+# cLog in using a token from huggingface.co/settings/tokens
+# Create a model or dataset repo from the CLI if needed
+huggingface-cli repo create repo_name --type {model, dataset, space}
+```
 
 ## 模型下载地址
 1. LLama2 https://pan.baidu.com/s/1PF5KqvIvNFR8yDIY1HmTYA?pwd=ma8r 或 https://huggingface.co/fushenshen/lession_model/tree/main
@@ -44,21 +77,20 @@ python export.py llama2_7b.bin --meta-llama path/to/llama/model/7B
 
 ## 生成文本的方法
 ```shell
-./llama_infer llama2_7b.bin tokenizer.model
-
+# ./llama_infer llama2_7b.bin tokenizer.model
+./lsInfer/build/demo/llama_infer -m model/llama32_1bnq.bin -t model/tokenizer.model -d cuda
 ```
 
 # LLama3.2 推理
 
 - 以 meta-llama/Llama-3.2-1B 为例，huggingface 上下载模型：
 ```shell
-export HF_ENDPOINT=https://hf-mirror.com
-pip3 install huggingface-cli
 huggingface-cli download --resume-download meta-llama/Llama-3.2-1B --local-dir meta-llama/Llama-3.2-1B --local-dir-use-symlinks False
 ```
 - 导出模型：
 ```shell
-python3 tools/export.py Llama-3.2-1B.bin --hf=meta-llama/Llama-3.2-1B
+python3 path/to/tools/export.py Llama-3.2-1B.bin --hf=meta-llama/Llama-3.2-1B
+python3 lsInfer/tools/export_llama3.py llama-3.2-3B.bin --hf=Llama-3.2-3B-Instruct
 ```
 - 编译：
 ```shell
@@ -80,7 +112,7 @@ python3 hf_infer/llama3_infer.py
 - 以 Qwen2.5-0.5B 为例，huggingface 上下载模型：
 ```shell
 export HF_ENDPOINT=https://hf-mirror.com
-pip3 install huggingface-cli
+# pip3 install huggingface-cli
 huggingface-cli download --resume-download Qwen/Qwen2.5-0.5B --local-dir Qwen/Qwen2.5-0.5B --local-dir-use-symlinks False
 ```
 - 导出模型：
