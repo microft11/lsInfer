@@ -1,17 +1,13 @@
 # readme
 ## 项目简介
 项目支持：
-- 基于KuiperLLama大模型推理框架的推理
-- 基于Qwen2.5/LLama的推理
+- LLama的推理
 - 使用cuda，cpu 后端推理
-
-本项目对于KuiperLLama主要更新的点有；
-1. ~~添加了 amd 的 rocm 后端实现~~，原作者把cuda和cpu的实现混在一起，太难解耦了。
+- ~~添加了 amd 的 rocm 后端实现~~，
 > rocm后端的实现（WIP）在 https://github.com/microft11/lsInfer/tree/backend_separation 分支中
-2. 添加新的模型推理框架支持
-3. 添加后端的自动选择
-4. 算子的更新优化
-5. ~~与某国产企业的推理框架对接~~（但是不商用，且较为机密，估计不会放到这里）
+-  添加后端的自动选择
+-  算子更新优化
+- ~~与某国产企业的推理框架对接~~（涉密，未实现
 
 ## 第三方依赖
 > 借助企业级开发库，更快地搭建出大模型推理框架
@@ -61,7 +57,6 @@ huggingface-cli repo create repo_name --type {model, dataset, space}
 ```shell
 python export.py llama2_7b.bin --meta-llama path/to/llama/model/7B
 # 使用--hf标签从hugging face中加载模型， 指定--version3可以导出量化模型
-# 其他使用方法请看export.py中的命令行参数实例
 ```
 
 

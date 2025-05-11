@@ -1,5 +1,5 @@
-#ifndef KUIPER_INCLUDE_TENSOR_TENSOR_H_
-#define KUIPER_INCLUDE_TENSOR_TENSOR_H_
+#ifndef LSINFER_INCLUDE_TENSOR_TENSOR_H_
+#define LSINFER_INCLUDE_TENSOR_TENSOR_H_
 #include <driver_types.h>
 #include <glog/logging.h>
 #include <armadillo>
@@ -140,4 +140,4 @@ const T* Tensor::ptr(int64_t index) const {
   return reinterpret_cast<const T*>(buffer_->ptr()) + index;
 }
 }  // namespace tensor
-#endif  // KUIPER_INCLUDE_TENSOR_TENSOR_H_
+#endif  // LSINFER_INCLUDE_TENSOR_TENSOR_H_

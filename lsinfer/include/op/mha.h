@@ -1,5 +1,5 @@
-#ifndef KUIPER_INLCUDE_MHA_H
-#define KUIPER_INLCUDE_MHA_H
+#ifndef LSINFER_INLCUDE_MHA_H
+#define LSINFER_INLCUDE_MHA_H
 #include <base/cuda_config.h>
 #include "layer.h"
 namespace op {
@@ -26,4 +26,4 @@ class MultiHeadAttention : public op::Layer {
   int32_t head_size_ = 0;
 };
 }  // namespace op
-#endif  // KUIPER_INLCUDE_MHA_H
+#endif  // LSINFER_INLCUDE_MHA_H

@@ -1,6 +1,6 @@
 
-#ifndef KUIPER_INCLUDE_OP_EMBEDDING_H_
-#define KUIPER_INCLUDE_OP_EMBEDDING_H_
+#ifndef LSINFER_INCLUDE_OP_EMBEDDING_H_
+#define LSINFER_INCLUDE_OP_EMBEDDING_H_
 #include <utility>
 #include "layer.h"
 namespace op {
@@ -30,4 +30,4 @@ class EmbeddingLayer : public LayerParam {
   int32_t vocab_size_ = 0;
 };
 }  // namespace op
-#endif  // KUIPER_INCLUDE_OP_EMBEDDING_H_
+#endif  // LSINFER_INCLUDE_OP_EMBEDDING_H_

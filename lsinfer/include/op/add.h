@@ -1,5 +1,5 @@
-#ifndef KUIPER_INCLUDE_OP_ADD_H
-#define KUIPER_INCLUDE_OP_ADD_H
+#ifndef LSINFER_INCLUDE_OP_ADD_H
+#define LSINFER_INCLUDE_OP_ADD_H
 #include "base/base.h"
 #include "layer.h"
 namespace op {
@@ -12,4 +12,4 @@ class VecAddLayer : public Layer {
   base::Status forward() override;
 };
 }  // namespace op
-#endif  // KUIPER_INCLUDE_OP_ADD_H
+#endif  // LSINFER_INCLUDE_OP_ADD_H

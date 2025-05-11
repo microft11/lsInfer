@@ -1,5 +1,5 @@
-#ifndef KUIPER_INCLUDE_OP_ENCODE_H_
-#define KUIPER_INCLUDE_OP_ENCODE_H_
+#ifndef LSINFER_INCLUDE_OP_ENCODE_H_
+#define LSINFER_INCLUDE_OP_ENCODE_H_
 #include <sentencepiece_processor.h>
 #include "layer.h"
 #if defined (LLAMA3_SUPPORT) || defined (QWEN2_SUPPORT)
@@ -85,4 +85,4 @@ public:
 #endif
 
 }  // namespace op
-#endif  // KUIPER_INCLUDE_OP_ENCODE_H_
+#endif  // LSINFER_INCLUDE_OP_ENCODE_H_

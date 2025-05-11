@@ -1,5 +1,5 @@
-#ifndef KUIPER_INCLUDE_OP_RMSNORM_H_
-#define KUIPER_INCLUDE_OP_RMSNORM_H_
+#ifndef LSINFER_INCLUDE_OP_RMSNORM_H_
+#define LSINFER_INCLUDE_OP_RMSNORM_H_
 #include "layer.h"
 namespace op {
 class RmsNormLayer : public LayerParam {
@@ -14,4 +14,4 @@ class RmsNormLayer : public LayerParam {
   int32_t dim_ = 0;
 };
 }  // namespace op
-#endif  // KUIPER_INCLUDE_OP_RMSNORM_H_
+#endif  // LSINFER_INCLUDE_OP_RMSNORM_H_

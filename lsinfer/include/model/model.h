@@ -1,5 +1,5 @@
-#ifndef KUIPER_INCLUDE_MODEL_MODEL_H_
-#define KUIPER_INCLUDE_MODEL_MODEL_H_
+#ifndef LSINFER_INCLUDE_MODEL_MODEL_H_
+#define LSINFER_INCLUDE_MODEL_MODEL_H_
 #include <op/embedding.h>
 #include <map>
 #include <string>
@@ -94,4 +94,4 @@ class Model {
   base::TokenizerType tokenizer_type_ = base::TokenizerType::kEncodeUnknown;
 };
 }  // namespace model
-#endif  // KUIPER_INCLUDE_MODEL_MODEL_H_
+#endif  // LSINFER_INCLUDE_MODEL_MODEL_H_

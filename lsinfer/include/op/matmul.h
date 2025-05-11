@@ -1,9 +1,5 @@
-//
-// Created by hello on 2024/5/2.
-//
-
-#ifndef KUIPER_INCLUDE_OP_MATMUL_H_
-#define KUIPER_INCLUDE_OP_MATMUL_H_
+#ifndef LSINFER_INCLUDE_OP_MATMUL_H_
+#define LSINFER_INCLUDE_OP_MATMUL_H_
 #include <base/cuda_config.h>
 #include "layer.h"
 namespace op {
@@ -32,4 +28,4 @@ class MatmulLayer : public LayerParam {
   std::vector<tensor::Tensor> bias_;
 };
 }  // namespace op
-#endif  // KUIPER_INCLUDE_OP_MATMUL_H_
+#endif  // LSINFER_INCLUDE_OP_MATMUL_H_

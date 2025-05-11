@@ -1,5 +1,5 @@
-#ifndef KUIPER_INCLUDE_MODEL_LLAMA_CONFIG_H_
-#define KUIPER_INCLUDE_MODEL_LLAMA_CONFIG_H_
+#ifndef LSINFER_INCLUDE_MODEL_LLAMA_CONFIG_H_
+#define LSINFER_INCLUDE_MODEL_LLAMA_CONFIG_H_
 #include <cstdint>
 namespace model {
 struct ModelConfig {
@@ -27,4 +27,4 @@ struct TransformerConfig {
   bool is_shared_weight_ = false;
 };
 }  // namespace model
-#endif  // KUIPER_INCLUDE_MODEL_LLAMA_CONFIG_H_
+#endif  // LSINFER_INCLUDE_MODEL_LLAMA_CONFIG_H_

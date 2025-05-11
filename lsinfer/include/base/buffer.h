@@ -1,5 +1,5 @@
-#ifndef KUIPER_INCLUDE_BASE_BUFFER_H_
-#define KUIPER_INCLUDE_BASE_BUFFER_H_
+#ifndef LSINFER_INCLUDE_BASE_BUFFER_H_
+#define LSINFER_INCLUDE_BASE_BUFFER_H_
 #include <memory>
 #include "base/alloc.h"
 namespace base {

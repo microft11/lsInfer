@@ -1,5 +1,5 @@
-#ifndef KUIPER_INCLUDE_OP_LAYER_H_
-#define KUIPER_INCLUDE_OP_LAYER_H_
+#ifndef LSINFER_INCLUDE_OP_LAYER_H_
+#define LSINFER_INCLUDE_OP_LAYER_H_
 #include <base/cuda_config.h>
 #include <string>
 #include <vector>
@@ -187,4 +187,4 @@ class LayerParam : public Layer {
   std::vector<tensor::Tensor> weights_;
 };
 }  // namespace op
-#endif  // KUIPER_INCLUDE_OP_LAYER_H_
+#endif  // LSINFER_INCLUDE_OP_LAYER_H_

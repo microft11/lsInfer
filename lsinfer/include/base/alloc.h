@@ -1,5 +1,5 @@
-#ifndef KUIPER_INCLUDE_BASE_ALLOC_H_
-#define KUIPER_INCLUDE_BASE_ALLOC_H_
+#ifndef LSINFER_INCLUDE_BASE_ALLOC_H_
+#define LSINFER_INCLUDE_BASE_ALLOC_H_
 #include <map>
 #include <memory>
 #include "base.h"
@@ -91,4 +91,4 @@ class CUDADeviceAllocatorFactory {
   static std::shared_ptr<CUDADeviceAllocator> instance;
 };
 }  // namespace base
-#endif  // KUIPER_INCLUDE_BASE_ALLOC_H_
+#endif  // LSINFER_INCLUDE_BASE_ALLOC_H_

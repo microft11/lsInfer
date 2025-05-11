@@ -19,5 +19,3 @@ RawStringFormats:
   - 'pb'
   - 'proto'
   BasedOnStyle: Google
-
-CommentPragmas: '(@copydoc|@copybrief|@see)'

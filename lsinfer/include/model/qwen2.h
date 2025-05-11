@@ -1,5 +1,5 @@
-#ifndef KUIPER_INCLUDE_MODEL_LLAMA_H_
-#define KUIPER_INCLUDE_MODEL_LLAMA_H_
+#ifndef LSINFER_INCLUDE_MODEL_LLAMA_H_
+#define LSINFER_INCLUDE_MODEL_LLAMA_H_
 #include <base/cuda_config.h>
 #include "model.h"
 #include "op/add.h"
