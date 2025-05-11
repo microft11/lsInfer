@@ -14,5 +14,6 @@ inputs = inputs.to(model.device)
 pred = model.generate(
     **inputs, max_new_tokens=128, do_sample=False, repetition_penalty=1.0
 )
+
 test = tokenizer.decode(pred.cpu()[0], skip_special_tokens=True)
 print(test)

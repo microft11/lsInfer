@@ -35,6 +35,6 @@ if (CUDA_FOUND)
     set(CMAKE_CUDA_ARCHITECTURES "75;80;86")
 
     set(CMAKE_CUDA_COMPILER_LIBRARY_ROOT /usr/local/cuda)
-else ()
+else () 
     message(STATUS "CUDA was not found.")
 endif ()
